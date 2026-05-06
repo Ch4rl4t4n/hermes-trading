@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#6366f1">
+<title>LETAGENTSCOOK — AI Trading Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@keyframes float{0%,to{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes loginIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,to{opacity:1}50%{opacity:.6}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-primary:#07080d;
+  --bg-secondary:#0d0f17;
+  --bg-tertiary:#131620;
+  --bg-elevated:#1a1d2e;
+  --accent-primary:#6366f1;
+  --accent-success:#10b981;
+  --accent-danger:#ef4444;
+  --accent-warning:#f59e0b;
+  --accent-info:#06b6d4;
+  --text-primary:#e2e8f0;
+  --text-secondary:#94a3b8;
+  --text-muted:#475569;
+  --border-subtle:rgba(255,255,255,0.06);
+  --border-default:rgba(255,255,255,0.1);
+}
+html,body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh}
+body{overflow-x:hidden}
+.mono,.trade-price,.stat-value{font-family:'JetBrains Mono','Fira Code',monospace}
+#neuralBg{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none;display:block}
+.app-layer{position:relative;z-index:1}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg-secondary)}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:4px}
+.header{background:rgba(13,15,23,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border-subtle);padding:.85rem 1.1rem;position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.header-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+.logo{font-size:15px;font-weight:700;color:var(--text-primary);letter-spacing:.12em;display:flex;align-items:center;gap:10px}
+.logo-brand{font-weight:700;letter-spacing:.18em}
+.logo-badge{font-size:9px;padding:2px 6px;border-radius:6px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#fcd34d;letter-spacing:1px}
+.logo-badge.live{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#fca5a5}
+.status-dot{width:6px;height:6px;background:var(--accent-success);border-radius:50%;box-shadow:0 0 8px var(--accent-success);animation:pulse 2s ease-in-out infinite}
+.status-dot.muted{background:#4b5563;box-shadow:none;animation:none}
+.status-dot.warn{background:var(--accent-warning);box-shadow:0 0 8px var(--accent-warning);animation:none}
+.status-dot.danger{background:var(--accent-danger);box-shadow:0 0 8px var(--accent-danger)}
+#systemStatus{font-size:11px;color:var(--text-muted);letter-spacing:1px}
+.burger{width:36px;height:36px;border:1px solid rgba(99,102,241,.25);border-radius:10px;background:rgba(99,102,241,.08);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;cursor:pointer;transition:all .2s;flex-shrink:0}
+.burger:hover{background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.4)}
+.burger-line{width:16px;height:2px;background:var(--accent-primary);border-radius:1px}
+.burger-menu{position:fixed;top:0;right:0;width:300px;max-width:85%;height:100vh;background:rgba(10,15,23,.98);backdrop-filter:blur(24px);border-left:1px solid var(--border-default);transform:translateX(100%);transition:transform .3s;z-index:200;padding:1.5rem 1.25rem}
+.burger-menu.active{transform:translateX(0)}
+.burger-menu-close{font-size:28px;color:var(--text-secondary);cursor:pointer;margin-bottom:1.5rem;text-align:right;line-height:1}
+.burger-menu-item{padding:14px 4px;color:var(--text-primary);font-size:14px;border-bottom:1px solid var(--border-subtle);cursor:pointer;transition:color .2s;min-height:44px;display:flex;align-items:center}
+.burger-menu-item:hover{color:var(--accent-primary)}
+.burger-menu-item.danger{color:#f87171}
+.container{padding:1rem 1rem 3rem;position:relative;z-index:2;max-width:1100px;margin:0 auto}
+.empty-hint{color:var(--text-muted);font-size:13px;text-align:center;padding:2rem 1rem;border:1px dashed var(--border-default);border-radius:12px}
+#agentCards{display:grid;grid-template-columns:1fr;gap:1rem}
+@media(min-width:640px){#agentCards{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:960px){#agentCards{grid-template-columns:repeat(3,1fr)}}
+.agent-card{background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;padding:1.1rem;cursor:pointer;transition:all .2s ease;animation:float 7s ease-in-out infinite}
+.agent-card:nth-child(2){animation-delay:1.2s}
+.agent-card:nth-child(3){animation-delay:2.4s}
+.agent-card:hover{transform:translateY(-2px);border-color:rgba(99,102,241,.45);box-shadow:0 12px 32px rgba(99,102,241,.12)}
+.agent-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+.agent-symbol{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0}
+.agent-dot{width:7px;height:7px;border-radius:50%;box-shadow:0 0 8px var(--dot-c,#6366f1)}
+.signal-badge{font-size:10px;padding:6px 10px;border-radius:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.trades-list{margin-top:10px}
+.trade-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:12px;border-bottom:1px solid var(--border-subtle)}
+.trade-type{color:var(--text-secondary);text-transform:uppercase;font-size:10px;letter-spacing:.06em}
+.trade-profit.positive{color:var(--accent-success)}
+.trade-profit.negative{color:var(--accent-danger)}
+.trade-profit.neutral{color:var(--text-muted)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(12px);z-index:300;display:none;align-items:center;justify-content:center;animation:fadeIn .2s;padding:1rem}
+.modal-overlay.active{display:flex}
+.modal-login-wrap{animation:loginIn .45s ease-out}
+.login-brand{display:block;text-align:center;font-size:1.05rem;font-weight:700;letter-spacing:.2em;color:var(--text-primary);margin-bottom:.25rem}
+.login-tagline{font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:1.25rem}
+.modal{background:rgba(26,29,46,.55);backdrop-filter:blur(16px);border:1px solid var(--border-subtle);border-radius:12px;padding:1.75rem 1.5rem;width:90%;max-width:400px;position:relative;box-shadow:0 24px 48px rgba(0,0,0,.45)}
+.modal-close{position:absolute;top:14px;right:18px;font-size:28px;color:var(--text-secondary);cursor:pointer;line-height:1}
+.modal-title{font-size:18px;font-weight:700;color:var(--accent-primary);margin-bottom:1.25rem}
+.input-group{margin-bottom:1.1rem}
+.input-label{font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:1px}
+.input-field{width:100%;padding:12px 14px;background:rgba(0,0,0,.3);border:1px solid var(--border-default);border-radius:10px;color:var(--text-primary);font-size:14px;font-family:inherit}
+.input-field:focus{outline:none;border-color:rgba(99,102,241,.5);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.btn{width:100%;padding:14px;background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.35);border-radius:10px;color:var(--accent-primary);font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;min-height:44px}
+.btn:hover{background:rgba(99,102,241,.3);box-shadow:0 0 20px rgba(99,102,241,.15)}
+.error-msg{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:12px;color:#fca5a5;font-size:12px;margin-top:12px;display:none}
+.error-msg.active{display:block}
+.hint-text{font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.45}
+.detail-page{display:none;position:fixed;inset:0;background:var(--bg-primary);z-index:250;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.detail-page.active{display:block}
+.detail-header{padding:.85rem 1rem;background:rgba(13,15,23,.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.back-btn{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:var(--accent-primary);padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.back-btn:hover{background:rgba(99,102,241,.2)}
+.detail-title{font-size:16px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.export-btn{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28);color:var(--accent-primary);padding:8px 14px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer}
+.detail-content{padding:1.25rem 1rem 4rem;max-width:1000px;margin:0 auto}
+.section-title{font-size:11px;color:var(--accent-primary);text-transform:uppercase;letter-spacing:2px;font-weight:700;margin:1.5rem 0 .85rem}
+.chart-box{background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden;margin-bottom:1.25rem;min-height:400px}
+#tradingview_chart{width:100%;min-height:400px;height:400px;background:var(--bg-primary)}
+#tradingview_chart .tradingview-widget-container{min-height:inherit;height:100%}
+.chart-fallback{padding:1.25rem;text-align:center;font-size:13px;color:var(--text-secondary)}
+@media(max-width:767px){.chart-box{min-height:250px}#tradingview_chart{min-height:250px;height:250px}}
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1.25rem}
+@media(min-width:768px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;padding:.9rem}
+.stat-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px}
+.trade-list-header{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filter-btn{padding:8px 14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.22);border-radius:8px;color:var(--text-secondary);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
+.filter-btn.active{background:rgba(99,102,241,.2);border-color:rgba(99,102,241,.4);color:var(--accent-primary)}
+.trade-row{display:grid;grid-template-columns:60px 1fr 80px 70px;gap:8px;padding:10px 0;font-size:11px;border-bottom:1px solid var(--border-subtle)}
+.trade-id{color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+.trade-action{font-weight:600}
+.trade-action.buy{color:var(--accent-success)}
+.trade-action.sell{color:var(--accent-danger)}
+.trade-action.info{color:var(--text-secondary)}
+.api-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1.25rem}
+.api-box{background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;padding:1rem}
+.api-box.active{border-color:rgba(99,102,241,.35)}
+.api-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.api-name{font-size:12px;font-weight:600}
+.toggle-switch{width:40px;height:22px;background:rgba(107,114,128,.35);border-radius:11px;position:relative;cursor:pointer;transition:all .3s}
+.toggle-switch.active{background:rgba(99,102,241,.45)}
+.toggle-slider{width:18px;height:18px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:all .3s}
+.toggle-switch.active .toggle-slider{left:20px}
+.api-icon{width:32px;height:32px;background:rgba(99,102,241,.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--accent-primary)}
+.strategy-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:520px){.strategy-grid{grid-template-columns:repeat(3,1fr)}}
+.strategy-btn{background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;text-align:center;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.06em}
+.strategy-btn:hover{border-color:rgba(99,102,241,.35)}
+.strategy-btn.active{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.4);color:var(--accent-primary)}
+.date-input{width:100%;padding:12px 14px;background:rgba(0,0,0,.3);border:1px solid var(--border-default);border-radius:10px;color:var(--text-primary);font-size:14px;margin-bottom:12px;font-family:inherit}
+.cmc-link-wrap{text-align:center;padding:10px 0;font-size:12px}
+.cmc-link-wrap a{color:var(--accent-info)}
+</style>
+</head>
+<body>
+
+<canvas id="neuralBg" width="1920" height="1080" aria-hidden="true"></canvas>
+<div class="app-layer">
+
+<div class="header">
+<div class="header-left">
+<div class="logo">
+<div class="status-dot" id="connDot" title="API connection"></div>
+<span class="logo-brand">LETAGENTSCOOK</span>
+<span class="logo-badge" id="modeBadge">SANDBOX</span>
+</div>
+<span id="systemStatus">—</span>
+</div>
+<div class="burger" id="burgerBtn" role="button" tabindex="0" aria-label="Menu">
+<div class="burger-line"></div>
+<div class="burger-line"></div>
+<div class="burger-line"></div>
+</div>
+</div>
+
+<div class="burger-menu" id="burgerMenu">
+<div class="burger-menu-close" id="burgerClose">×</div>
+<div class="burger-menu-item" id="loginMenuItem">Prihlásiť sa</div>
+<div class="burger-menu-item" id="logoutMenuItem" style="display:none">Odhlásiť sa</div>
+<div class="burger-menu-item danger" id="killMenuItem">Kill switch</div>
+</div>
+
+<div class="container" id="homePage">
+<div id="agentCards"></div>
+<p class="empty-hint" id="noAgents" style="display:none">Najprv sa prihláste. Predvolené: <code style="color:var(--accent-primary)">shako</code> / <code style="color:var(--accent-primary)">shako</code> (lokálne — zmeň <code style="color:var(--text-muted)">DASHBOARD_USER</code> / <code style="color:var(--text-muted)">DASHBOARD_PASSWORD</code>). Skripty: hlavička <code style="color:var(--text-muted)">X-API-Key</code> = <code style="color:var(--text-muted)">DASHBOARD_API_KEY</code>.</p>
+</div>
+
+<div class="modal-overlay" id="loginModal">
+<div class="modal modal-login-wrap">
+<div class="modal-close" id="loginClose">×</div>
+<div class="login-brand">LETAGENTSCOOK</div>
+<div class="login-tagline">Web dashboard · Prihlásenie</div>
+<div class="input-group">
+<label class="input-label">Meno (login)</label>
+<input type="text" class="input-field" id="username" value="shako" placeholder="shako" autocomplete="username">
+</div>
+<div class="input-group">
+<label class="input-label">Heslo</label>
+<input type="password" class="input-field" id="password" value="shako" placeholder="••••" autocomplete="current-password">
+</div>
+<p class="hint-text">Predvolené prihlasovacie údaje sú len pre vývoj. V produkcii nastav env premenné.</p>
+<button class="btn" type="button" id="btnLogin">Prihlásiť sa</button>
+<div class="error-msg" id="errorMsg">Nesprávne meno alebo heslo</div>
+</div>
+</div>
+
+<div class="detail-page" id="detailPage">
+<div class="detail-header">
+<button type="button" class="back-btn" id="btnBack">← Späť</button>
+<div class="detail-title" id="detailAgentName">—</div>
+<button type="button" class="export-btn" id="btnExport">Export</button>
+</div>
+<div class="detail-content">
+<div class="section-title">Live chart</div>
+<div class="chart-box">
+<div id="tradingview_chart"></div>
+<div class="cmc-link-wrap"><a id="cmcLink" href="https://coinmarketcap.com" target="_blank" rel="noopener">CoinMarketCap →</a></div>
+</div>
+
+<div class="section-title">Štatistiky</div>
+<div class="stats-grid">
+<div class="stat-card">
+<div class="stat-label">Obchody dnes</div>
+<div class="stat-value" id="stTrades">—</div>
+</div>
+<div class="stat-card">
+<div class="stat-label">Pozícia (qty)</div>
+<div class="stat-value" id="stPos">—</div>
+</div>
+<div class="stat-card">
+<div class="stat-label">Vstup / Last</div>
+<div class="stat-value" id="stPrices">—</div>
+</div>
+<div class="stat-card">
+<div class="stat-label">Nerealiz. P&amp;L</div>
+<div class="stat-value" id="stPnl">—</div>
+</div>
+</div>
+
+<div class="section-title">Súhrn relácie</div>
+<div class="trade-list-header">
+<button type="button" class="filter-btn active" data-filter="all">Všetko</button>
+<button type="button" class="filter-btn" data-filter="long">Otvorené</button>
+<button type="button" class="filter-btn" data-filter="flat">Flat</button>
+</div>
+<div id="tradesList"></div>
+
+<div class="section-title">Zdroje dát</div>
+<div class="api-grid">
+<div class="api-box active" id="api-alpaca">
+<div class="api-header">
+<div class="api-name">Alpaca</div>
+<div class="toggle-switch active" data-api="alpaca" role="switch" aria-checked="true">
+<div class="toggle-slider"></div>
+</div>
+</div>
+<div class="api-icon">A</div>
+</div>
+<div class="api-box active" id="api-cmc">
+<div class="api-header">
+<div class="api-name">Externé kotácie</div>
+<div class="toggle-switch active" data-api="cmc" role="switch" aria-checked="true">
+<div class="toggle-slider"></div>
+</div>
+</div>
+<div class="api-icon">Q</div>
+</div>
+<div class="api-box active" id="api-anthropic">
+<div class="api-header">
+<div class="api-name">Anthropic LLM</div>
+<div class="toggle-switch active" data-api="anthropic" role="switch" aria-checked="true">
+<div class="toggle-slider"></div>
+</div>
+</div>
+<div class="api-icon" aria-hidden="true">🤖</div>
+</div>
+<div class="api-box active" id="api-news">
+<div class="api-header">
+<div class="api-name">News / feed</div>
+<div class="toggle-switch active" data-api="news" role="switch" aria-checked="true">
+<div class="toggle-slider"></div>
+</div>
+</div>
+<div class="api-icon">N</div>
+</div>
+</div>
+
+<div class="section-title">Stratégie</div>
+<div class="strategy-grid" id="strategyGrid">
+<div class="strategy-btn active" data-s="0">Scalping</div>
+<div class="strategy-btn" data-s="1">Trend</div>
+<div class="strategy-btn" data-s="2">Mean rev.</div>
+<div class="strategy-btn" data-s="3">Breakout</div>
+<div class="strategy-btn" data-s="4">Grid</div>
+</div>
+</div>
+</div>
+
+<div class="modal-overlay" id="exportModal">
+<div class="modal">
+<div class="modal-close" id="exportClose">×</div>
+<div class="modal-title">Export obchodov</div>
+<div class="input-group">
+<label class="input-label">Od dátumu</label>
+<input type="date" class="date-input" id="fromDate">
+</div>
+<div class="input-group">
+<label class="input-label">Do dátumu</label>
+<input type="date" class="date-input" id="toDate">
+</div>
+<p class="hint-text">Export na serveri ešte nie je zapojený — potvrdzuje len zvolený rozsah.</p>
+<button class="btn" type="button" id="btnExportOk">OK</button>
+</div>
+</div>
+
+</div>
+<!-- /.app-layer -->
+
+<script>
+const CARD_THEMES = [
+  { dot:'#10b981' },
+  { dot:'#6366f1' },
+  { dot:'#fbbf24' }
+];
+const TV_OVERRIDES = {
+  'BTC/USD':'BINANCE:BTCUSDT','ETH/USD':'BINANCE:ETHUSDT','SOL/USD':'BINANCE:SOLUSDT',
+  'TSLA':'NASDAQ:TSLA','NVDA':'NASDAQ:NVDA','AMD':'NASDAQ:AMD',
+  'GLD':'AMEX:GLD','USO':'AMEX:USO',
+};
+const CMC = {
+  'BTC/USD':'bitcoin','ETH/USD':'ethereum','SOL/USD':'solana',
+  'DOGE/USD':'dogecoin','XRP/USD':'xrp'
+};
+let isLoggedIn = false;
+let pendingAgent = null;
+let currentSymbol = null;
+let priceCache = {};
+let lastAgents = [];
+let _ws = null;
+let _status = { dry_run: false, kill_switch: false };
+let _tvWidgetSymbol = null;
+
+function effectiveKey() {
+  return localStorage.getItem('hermesKey') || sessionStorage.getItem('hermesKey') || '';
+}
+function hdr() {
+  const k = effectiveKey();
+  return k ? { 'X-API-Key': k } : {};
+}
+function apiFetch(url, options) {
+  const o = options || {};
+  o.credentials = 'include';
+  const base = hdr();
+  o.headers = Object.assign({}, base, o.headers || {});
+  return fetch(url, o);
+}
+function fmtUsd(n) {
+  if (n == null || n === '' || !isFinite(Number(n))) return '—';
+  const x = Number(n);
+  if (x >= 1000) return '$' + x.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (x >= 1) return '$' + x.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return '$' + x.toFixed(4);
+}
+function cmcPath(sym) {
+  const s = (sym || '').toUpperCase();
+  return CMC[s] || s.replace('/USD','').replace('/USDT','').toLowerCase();
+}
+function assetTypeForSymbol(sym) {
+  const s = sym || '';
+  if (s.includes('/')) return 'crypto';
+  return 'stock';
+}
+function tvSymbol(sym, type) {
+  if (TV_OVERRIDES[sym]) return TV_OVERRIDES[sym];
+  if (type === 'crypto') return 'BINANCE:' + sym.replace('/', '').replace('USD', 'USDT');
+  return 'NASDAQ:' + sym;
+}
+function renderTradingViewChart(symbol) {
+  const at = assetTypeForSymbol(symbol);
+  const sym = tvSymbol(symbol, at);
+  if (_tvWidgetSymbol === sym) return;
+  const cont = document.getElementById('tradingview_chart');
+  if (!cont) return;
+  cont.innerHTML = '';
+  try {
+    const cfg = {
+      autosize: true,
+      symbol: sym,
+      interval: '60',
+      timezone: 'Etc/UTC',
+      theme: 'dark',
+      style: '1',
+      locale: 'sk',
+      backgroundColor: '#07080d',
+      withdateranges: true,
+      hide_side_toolbar: false,
+      allow_symbol_change: false,
+      save_image: false,
+      calendar: false,
+      support_host: 'https://www.tradingview.com',
+    };
+    const wrap = document.createElement('div');
+    wrap.className = 'tradingview-widget-container';
+    wrap.style.height = '100%';
+    wrap.style.width = '100%';
+    const inner = document.createElement('div');
+    inner.className = 'tradingview-widget-container__widget';
+    inner.style.height = 'calc(100% - 28px)';
+    inner.style.minHeight = '200px';
+    inner.style.width = '100%';
+    const copy = document.createElement('div');
+    copy.className = 'tradingview-widget-copyright';
+    copy.style.fontSize = '10px';
+    copy.style.color = 'var(--text-muted)';
+    copy.innerHTML = '<a href="https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(sym) + '" rel="noopener nofollow" target="_blank" style="color:var(--accent-primary)">' + sym.replace(/</g,'') + '</a><span> · TradingView</span>';
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.text = JSON.stringify(cfg);
+    wrap.appendChild(inner);
+    wrap.appendChild(copy);
+    wrap.appendChild(script);
+    cont.appendChild(wrap);
+    _tvWidgetSymbol = sym;
+  } catch (e) {
+    _tvWidgetSymbol = null;
+    cont.innerHTML = '<div class="chart-fallback">Graf sa nepodarilo načítať.</div>';
+  }
+}
+function setConn(ok) {
+  const el = document.getElementById('connDot');
+  if (!el) return;
+  el.classList.remove('warn', 'danger', 'muted');
+  if (ok) return;
+  el.classList.add('warn');
+}
+function setConnGuest() {
+  const el = document.getElementById('connDot');
+  if (!el) return;
+  el.classList.remove('warn', 'danger');
+  el.classList.add('muted');
+}
+function setStatusSummary() {
+  const el = document.getElementById('systemStatus');
+  const badge = document.getElementById('modeBadge');
+  if (!el) return;
+  if (!isLoggedIn) {
+    el.textContent = 'Neprihlásený';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+  if (badge) {
+    badge.style.display = '';
+    if (_status.kill_switch) {
+      badge.textContent = 'STOP';
+      badge.classList.remove('live');
+    } else if (_status.dry_run) {
+      badge.textContent = 'SANDBOX';
+      badge.classList.remove('live');
+    } else {
+      badge.textContent = 'LIVE';
+      badge.classList.add('live');
+    }
+  }
+  if (_status.kill_switch) { el.textContent = 'KILL SWITCH'; return; }
+  if (_status.dry_run) { el.textContent = 'SANDBOX'; return; }
+  el.textContent = 'LIVE';
+}
+function updateAuthUI() {
+  const li = document.getElementById('loginMenuItem');
+  const lo = document.getElementById('logoutMenuItem');
+  if (li) li.style.display = isLoggedIn ? 'none' : 'block';
+  if (lo) lo.style.display = isLoggedIn ? 'block' : 'none';
+}
+function toggleBurger() {
+  document.getElementById('burgerMenu').classList.toggle('active');
+}
+function closeBurger() {
+  document.getElementById('burgerMenu').classList.remove('active');
+}
+function showLogin() {
+  document.getElementById('loginModal').classList.add('active');
+  closeBurger();
+}
+function closeLogin() {
+  document.getElementById('loginModal').classList.remove('active');
+  const e = document.getElementById('errorMsg');
+  if (e) e.classList.remove('active');
+}
+async function attemptLogin() {
+  const u = (document.getElementById('username') && document.getElementById('username').value) || '';
+  const p = (document.getElementById('password') && document.getElementById('password').value) || '';
+  const r = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ username: u, password: p })
+  });
+  if (r.ok) {
+    isLoggedIn = true;
+    const rs = await apiFetch('/api/status');
+    if (rs.ok) { _status = await rs.json(); }
+    closeLogin();
+    updateAuthUI();
+    setConn(true);
+    setStatusSummary();
+    connectWs();
+    await load();
+    if (pendingAgent) { showDetail(pendingAgent); pendingAgent = null; }
+  } else {
+    const err = document.getElementById('errorMsg');
+    if (err) err.classList.add('active');
+    isLoggedIn = false;
+    setConn(false);
+    setStatusSummary();
+  }
+}
+async function restoreSession() {
+  const r = await apiFetch('/api/status');
+  isLoggedIn = r.ok;
+  if (r.ok) { _status = await r.json(); }
+  if (r.ok) setConn(true);
+  else setConnGuest();
+  updateAuthUI();
+  setStatusSummary();
+  if (r.ok) connectWs();
+  else disconnectWs();
+}
+async function logout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  } catch (e) {}
+  isLoggedIn = false;
+  localStorage.removeItem('hermesKey');
+  sessionStorage.removeItem('hermesKey');
+  disconnectWs();
+  updateAuthUI();
+  setConnGuest();
+  const el = document.getElementById('systemStatus');
+  if (el) el.textContent = '—';
+  const badge = document.getElementById('modeBadge');
+  if (badge) { badge.style.display = 'none'; }
+  closeBurger();
+  document.getElementById('detailPage').classList.remove('active');
+  _tvWidgetSymbol = null;
+  lastAgents = [];
+  document.getElementById('agentCards').innerHTML = '';
+  const empty = document.getElementById('noAgents');
+  if (empty) empty.style.display = 'block';
+}
+function requireLogin(symbol) {
+  if (!isLoggedIn) { pendingAgent = symbol; showLogin(); }
+  else { showDetail(symbol); }
+}
+function showDetail(symbol) {
+  currentSymbol = symbol;
+  _tvWidgetSymbol = null;
+  document.getElementById('detailPage').classList.add('active');
+  document.getElementById('detailAgentName').textContent = symbol + ' — Agent';
+  const link = 'https://coinmarketcap.com/currencies/' + cmcPath(symbol) + '/';
+  const a = document.getElementById('cmcLink');
+  a.href = link;
+  a.textContent = 'CoinMarketCap · ' + cmcPath(symbol) + ' →';
+  renderTradingViewChart(symbol);
+  loadDetail();
+}
+function closeDetail() {
+  document.getElementById('detailPage').classList.remove('active');
+  currentSymbol = null;
+  _tvWidgetSymbol = null;
+  const cont = document.getElementById('tradingview_chart');
+  if (cont) cont.innerHTML = '';
+}
+function showExport() { document.getElementById('exportModal').classList.add('active'); }
+function closeExport() { document.getElementById('exportModal').classList.remove('active'); }
+function exportData() {
+  const a = document.getElementById('fromDate')?.value;
+  const b = document.getElementById('toDate')?.value;
+  alert('Rozsah: ' + a + ' → ' + b + ' (export API nie je pripojený)');
+  closeExport();
+}
+function filterTrades(type, el) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.trade-row').forEach(row => {
+    if (type === 'all') { row.style.display = 'grid'; return; }
+    const t = (row.getAttribute('data-type') || '');
+    if (type === 'long') row.style.display = t === 'long' ? 'grid' : 'none';
+    else if (type === 'flat') row.style.display = t === 'flat' ? 'grid' : 'none';
+  });
+}
+function toggleAPI(name) {
+  const box = document.getElementById('api-' + name);
+  if (!box) return;
+  const sw = box.querySelector('.toggle-switch');
+  sw.classList.toggle('active');
+  box.classList.toggle('active');
+  sw.setAttribute('aria-checked', sw.classList.contains('active') ? 'true' : 'false');
+}
+function connectWs() {
+  if (!isLoggedIn && !effectiveKey()) return;
+  disconnectWs();
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const k = effectiveKey();
+  let u = proto + '://' + location.host + '/ws/prices';
+  if (k) u += '?key=' + encodeURIComponent(k);
+  try {
+    _ws = new WebSocket(u);
+    _ws.onmessage = function (ev) {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'prices' && msg.data) {
+          priceCache = msg.data;
+          renderAgentCards();
+        }
+      } catch (e) {}
+    };
+  } catch (e) {}
+}
+function disconnectWs() {
+  if (_ws) { try { _ws.close(); } catch (e) {} _ws = null; }
+}
+async function doKill() {
+  if (!confirm('Zapnúť globálny kill switch? Obchodovanie sa zastaví.')) return;
+  const r = await apiFetch('/api/kill', { method: 'POST' });
+  if (r.ok) {
+    const j = await r.json();
+    _status.kill_switch = !!j.kill_switch;
+    setStatusSummary();
+  }
+  closeBurger();
+}
+function badgeFor(a) {
+  if (a.paused) {
+    return { t: 'Paused', bg: 'rgba(245,158,11,.15)', color: '#f59e0b', border: 'rgba(245,158,11,.35)' };
+  }
+  return { t: 'Active', bg: 'rgba(16,185,129,.12)', color: '#10b981', border: 'rgba(16,185,129,.3)' };
+}
+function renderAgentCards(agents) {
+  const el = document.getElementById('agentCards');
+  const empty = document.getElementById('noAgents');
+  if (!el) return;
+  if (agents !== undefined) {
+    if (Array.isArray(agents) && agents.length) lastAgents = agents;
+    else if (Array.isArray(agents) && agents.length === 0) lastAgents = [];
+  }
+  const list = (agents !== undefined && Array.isArray(agents)) ? agents : lastAgents;
+  if (!list || !list.length) {
+    el.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const symOf = function (a) { return a.symbol; };
+  el.innerHTML = list.map(function (a, i) {
+    const th = CARD_THEMES[i % CARD_THEMES.length];
+    const b = badgeFor(a);
+    const last = (priceCache && priceCache[symOf(a)] != null) ? priceCache[symOf(a)] : a.last_price;
+    const pnl = a.entry_price && a.position_qty > 0 && last
+      ? (((last - a.entry_price) / a.entry_price) * 100)
+      : null;
+    const pnlClass = pnl == null || !isFinite(pnl) ? 'neutral' : (pnl >= 0 ? 'positive' : 'negative');
+    const pnlStr = pnl == null || !isFinite(pnl) ? '—' : (pnl >= 0 ? '+' : '') + pnl.toFixed(1) + '%';
+    const nm = (a.name || '').replace(/</g, '');
+    return (
+      '<div class="agent-card" style="--dot-c:' + th.dot + '" data-symbol="' + symOf(a).replace(/"/g, '') + '">' +
+      '<div class="agent-header">' +
+      '<div class="agent-symbol"><div class="agent-dot"></div><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">' + symOf(a).replace(/</g, '') + '</span></div>' +
+      '<span class="signal-badge" style="background:' + b.bg + ';color:' + b.color + ';border:1px solid ' + b.border + '">' + b.t + '</span></div>' +
+      (nm ? '<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">' + nm + '</p>' : '') +
+      '<div class="trades-list">' +
+      '<div class="trade-item"><span class="trade-type">Last</span><span class="trade-price mono">' + fmtUsd(last) + '</span><span class="trade-profit ' + pnlClass + '">' + pnlStr + '</span></div>' +
+      '<div class="trade-item"><span class="trade-type">Obchody dnes</span><span class="trade-price">' + a.trades_today + '</span><span class="trade-profit neutral">—</span></div>' +
+      '<div class="trade-item"><span class="trade-type">Pozícia</span><span class="trade-price mono">' + (Number(a.position_qty).toFixed(4)) + '</span><span class="trade-profit neutral">—</span></div>' +
+      '</div></div>'
+    );
+  }).join('');
+  el.querySelectorAll('.agent-card').forEach(function (card) {
+    card.addEventListener('click', function () { requireLogin(card.getAttribute('data-symbol')); });
+  });
+}
+async function load() {
+  if (!isLoggedIn) { return; }
+  const r = await apiFetch('/api/agents');
+  if (r.status === 401) {
+    isLoggedIn = false;
+    lastAgents = [];
+    updateAuthUI();
+    setConn(false);
+    setStatusSummary();
+    renderAgentCards([]);
+    return;
+  }
+  const agents = await r.json();
+  const rs = await (await apiFetch('/api/status')).json();
+  _status = rs;
+  setStatusSummary();
+  renderAgentCards(agents);
+}
+async function loadDetail() {
+  if (!currentSymbol || !isLoggedIn) return;
+  const [aRes, pRes] = await Promise.all([
+    apiFetch('/api/agents'),
+    apiFetch('/api/positions')
+  ]);
+  if (aRes.status === 401) return;
+  const agents = await aRes.json();
+  const positions = pRes.ok ? await pRes.json() : [];
+  const a = agents.find(function (x) { return x.symbol === currentSymbol; });
+  if (!a) { return; }
+  document.getElementById('detailAgentName').textContent = currentSymbol + ' — ' + (a.name || 'Agent');
+  const pos = positions.find(function (p) { return p.symbol === currentSymbol; });
+  document.getElementById('stTrades').textContent = String(a.trades_today);
+  document.getElementById('stPos').textContent = Number(a.position_qty).toFixed(4);
+  const ep = a.entry_price;
+  const lp = (priceCache && priceCache[a.symbol] != null) ? priceCache[a.symbol] : a.last_price;
+  document.getElementById('stPrices').textContent = (ep ? fmtUsd(ep) : '—') + ' / ' + (lp != null ? fmtUsd(lp) : '—');
+  if (pos) {
+    const up = pos.unrealized_pnl_usd;
+    const el = document.getElementById('stPnl');
+    el.textContent = (up == null) ? '—' : (up >= 0 ? '+$' : '-$') + Math.abs(up).toLocaleString('en-US', { maximumFractionDigits: 2 });
+    el.style.color = up == null ? '' : (up >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)');
+  } else {
+    const el = document.getElementById('stPnl');
+    el.textContent = a.position_qty > 0 ? '—' : 'Flat';
+    el.style.color = 'var(--text-muted)';
+  }
+  const tlong = a.position_qty > 0;
+  function fmtPnl(usd) {
+    if (usd == null || !isFinite(usd)) return '—';
+    var sign = usd >= 0 ? '+' : '-';
+    return sign + '$' + Math.abs(usd).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+  var rows = [
+    { id: '#1', act: tlong ? 'long' : 'flat', p: tlong ? 'Long' : 'Flat', pr: fmtUsd(lp), pnl: tlong && pos ? fmtPnl(pos.unrealized_pnl_usd) : '—' }
+  ];
+  document.getElementById('tradesList').innerHTML = rows.map(function (o) {
+    return '<div class="trade-row" data-type="' + o.act + '"><span class="trade-id">' + o.id + '</span><span class="trade-action ' + (tlong ? 'buy' : 'info') + '">' + o.p + '</span><span class="trade-price">' + o.pr + '</span><span class="trade-profit ' + (tlong ? 'positive' : 'neutral') + '">' + o.pnl + '</span></div>';
+  }).join('');
+}
+
+/** Canvas neural background (aligned with main dashboard). */
+class NeuralBackground {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.nodes = [];
+    this.edges = [];
+    this.adj = [];
+    this.signals = [];
+    this._w = 0;
+    this._h = 0;
+    this._running = false;
+    this._boundResize = function () { this.resize(); }.bind(this);
+    this._frame = function () { this.draw(); }.bind(this);
+    window.addEventListener('resize', this._boundResize);
+    this.resize();
+  }
+  resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    this._w = w;
+    this._h = h;
+    this.canvas.width = Math.floor(w * dpr);
+    this.canvas.height = Math.floor(h * dpr);
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.generateNetwork();
+  }
+  generateNetwork() {
+    var w = this._w, h = this._h;
+    var spacing = w < 768 ? 120 : 80;
+    this.nodes = [];
+    for (var x = 0; x < w + spacing; x += spacing) {
+      for (var y = 0; y < h + spacing; y += spacing) {
+        this.nodes.push({
+          x: x + (Math.random() - 0.5) * spacing * 0.4,
+          y: y + (Math.random() - 0.5) * spacing * 0.4,
+        });
+      }
+    }
+    this.edges = [];
+    var i, j, dist;
+    for (i = 0; i < this.nodes.length; i++) {
+      for (j = i + 1; j < this.nodes.length; j++) {
+        dist = Math.hypot(this.nodes[i].x - this.nodes[j].x, this.nodes[i].y - this.nodes[j].y);
+        if (dist < spacing * 1.5) this.edges.push([i, j]);
+      }
+    }
+    var n = this.nodes.length;
+    this.adj = Array.from({ length: n }, function () { return []; });
+    this.edges.forEach(function (e) {
+      this.adj[e[0]].push({ to: e[1] });
+      this.adj[e[1]].push({ to: e[0] });
+    }.bind(this));
+    var colors = ['#06d6a0', '#6366f1', '#10b981', '#22d3ee', '#818cf8'];
+    var signalCount = w < 768 ? 15 : 33;
+    this.signals = [];
+    if (!this.edges.length) return;
+    for (var s = 0; s < signalCount; s++) {
+      var ei = Math.floor(Math.random() * this.edges.length);
+      var edge = this.edges[ei];
+      this.signals.push({
+        from: edge[0],
+        to: edge[1],
+        progress: Math.random(),
+        speed: 0.002 + Math.random() * 0.004,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 2 + Math.random() * 2,
+        trail: [],
+      });
+    }
+  }
+  pickNextNode(current, prev) {
+    var raw = this.adj[current];
+    if (!raw || !raw.length) return prev;
+    var tos = raw.map(function (x) { return x.to; });
+    var alt = tos.filter(function (t) { return t !== prev; });
+    var pool = alt.length ? alt : tos;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  start() {
+    if (this._running) return;
+    this._running = true;
+    this._frame();
+  }
+  draw() {
+    if (!this._running) return;
+    var ctx = this.ctx;
+    var w = this._w;
+    var h = this._h;
+    ctx.fillStyle = '#07080d';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.028)';
+    ctx.lineWidth = 0.5;
+    var self = this;
+    this.edges.forEach(function (e) {
+      var i = e[0], j = e[1];
+      ctx.beginPath();
+      ctx.moveTo(self.nodes[i].x, self.nodes[i].y);
+      ctx.lineTo(self.nodes[j].x, self.nodes[j].y);
+      ctx.stroke();
+    });
+    this.nodes.forEach(function (node) {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 1, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fill();
+    });
+    function hexA(hex, a) {
+      var h = hex.replace('#', '');
+      if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+      var v = parseInt(h, 16);
+      return 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + a + ')';
+    }
+    this.signals.forEach(function (sig) {
+      var A = self.nodes[sig.from];
+      var B = self.nodes[sig.to];
+      var x = A.x + (B.x - A.x) * sig.progress;
+      var y = A.y + (B.y - A.y) * sig.progress;
+      sig.trail.push({ x: x, y: y });
+      if (sig.trail.length > 8) sig.trail.shift();
+      var t, p, alpha, g;
+      for (t = 0; t < sig.trail.length - 1; t++) {
+        p = sig.trail[t];
+        alpha = ((t + 1) / sig.trail.length) * 0.32;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, sig.size * (0.35 + (t / Math.max(1, sig.trail.length)) * 0.65), 0, Math.PI * 2);
+        ctx.fillStyle = hexA(sig.color, alpha);
+        ctx.fill();
+      }
+      g = ctx.createRadialGradient(x, y, 0, x, y, sig.size * 4);
+      g.addColorStop(0, hexA(sig.color, 0.88));
+      g.addColorStop(0.45, hexA(sig.color, 0.22));
+      g.addColorStop(1, hexA(sig.color, 0));
+      ctx.beginPath();
+      ctx.arc(x, y, sig.size * 4, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, sig.size, 0, Math.PI * 2);
+      ctx.fillStyle = sig.color;
+      ctx.fill();
+      sig.progress += sig.speed;
+      if (sig.progress >= 1) {
+        var next = self.pickNextNode(sig.to, sig.from);
+        sig.from = sig.to;
+        sig.to = next;
+        sig.progress = 0;
+        sig.trail = [];
+      }
+    });
+    requestAnimationFrame(this._frame);
+  }
+}
+
+document.getElementById('burgerBtn').addEventListener('click', toggleBurger);
+document.getElementById('burgerClose').addEventListener('click', closeBurger);
+document.getElementById('loginMenuItem').addEventListener('click', function () { showLogin(); });
+document.getElementById('logoutMenuItem').addEventListener('click', function () { logout(); });
+document.getElementById('killMenuItem').addEventListener('click', doKill);
+document.getElementById('loginClose').addEventListener('click', closeLogin);
+document.getElementById('btnLogin').addEventListener('click', function () { attemptLogin(); });
+document.getElementById('btnBack').addEventListener('click', closeDetail);
+document.getElementById('btnExport').addEventListener('click', showExport);
+document.getElementById('exportClose').addEventListener('click', closeExport);
+document.getElementById('btnExportOk').addEventListener('click', exportData);
+document.querySelectorAll('.filter-btn').forEach(function (b) {
+  b.addEventListener('click', function () { filterTrades(b.getAttribute('data-filter'), b); });
+});
+document.querySelectorAll('.toggle-switch[data-api]').forEach(function (sw) {
+  sw.addEventListener('click', function (e) { e.stopPropagation(); toggleAPI(sw.getAttribute('data-api')); });
+});
+document.getElementById('strategyGrid').addEventListener('click', function (e) {
+  var t = e.target.closest('.strategy-btn');
+  if (!t) return;
+  document.querySelectorAll('.strategy-btn').forEach(function (x) { x.classList.remove('active'); });
+  t.classList.add('active');
+});
+setInterval(function () { load(); if (currentSymbol) loadDetail(); }, 3000);
+(function init() {
+  var nEl = document.getElementById('neuralBg');
+  if (nEl) new NeuralBackground(nEl).start();
+})();
+(async function init() {
+  await restoreSession();
+  await load();
+  var pw = document.getElementById('password');
+  if (pw) pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') attemptLogin(); });
+})();
+</script>
+</body>
+</html>

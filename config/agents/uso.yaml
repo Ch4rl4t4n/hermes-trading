@@ -1,0 +1,37 @@
+# Komodita ETF (RTH) | Category 3 — ropa, geopolitika, news-driven, ~1–7d
+name: "USO Agent"
+symbol: "USO"
+asset_type: commodity_etf
+strategy: volatile
+enabled: true
+trade_usd: 60
+trading_mode: day_trading
+
+schedule:
+  timezone: "America/New_York"
+  active_hours: "09:30-16:00"
+  check_interval_seconds: 900
+  timeframe: "15m"
+
+rule_based:
+  rsi_period: 14
+  rsi_buy_threshold: 25
+  rsi_sell_threshold: 75
+  macd_enabled: true
+  signal_confidence_threshold: 0.65
+
+llm:
+  enabled: true
+  trigger_threshold: 0.70
+  model: claude-opus-4-7
+  max_calls_per_hour: 4
+  use_sonnet_above: 0.88
+
+risk:
+  trailing_stop_pct: 5.0
+  trailing_activate_pct: 6.0
+  take_profit_pct: 12.0
+  max_trades_per_day: 6
+  max_daily_loss_pct: 2.0
+  max_position_pct: 0.05
+  atr_position_sizing: true

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/bin/python *)",
+      "Bash(/root/hermes/venv/bin/pip install *)",
+      "Bash(awk -F= '{k=$2; printf \"ANTHROPIC_API_KEY: first 10 chars = %s..., total length = %d\\\\n\", substr\\(k,1,10\\), length\\(k\\)}')",
+      "Bash(/root/hermes/venv/bin/python *)"
+    ]
+  }
+}

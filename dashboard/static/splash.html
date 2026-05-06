@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6366f1">
+  <title>LETAGENTSCOOK — Loading</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    html, body {
+      height: 100%;
+      background: #07080d;
+      color: #e8eaed;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 1.5rem;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { margin-top: 1.25rem; font-size: 0.95rem; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="logo" aria-hidden="true">H</div>
+  <div class="spinner" role="status" aria-label="Loading"></div>
+  <p>Loading LETAGENTSCOOK…</p>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search).get('redirect');
+      var target = q && q.indexOf('/') === 0 ? q : '/';
+      function go() { location.replace(target); }
+      if (document.readyState === 'complete') setTimeout(go, 400);
+      else window.addEventListener('load', function () { setTimeout(go, 400); });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — LETAGENTSCOOK</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07080d;--card:#131620;--border:rgba(255,255,255,.08);--text:#e2e8f0;--muted:#64748b;--accent:#6366f1;--ok:#10b981;--bad:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.25rem}
+h1{font-size:1.25rem;margin-bottom:1rem;letter-spacing:.06em}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem 1.25rem;margin-bottom:1rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.stat{padding:12px;border-radius:10px;background:rgba(0,0,0,.25);border:1px solid var(--border)}
+.stat .k{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:1px}
+.stat .v{font-size:1.35rem;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-size:11px;text-transform:uppercase}
+.btn{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--accent);background:rgba(99,102,241,.15);color:var(--accent);cursor:pointer}
+.btn.danger{border-color:var(--bad);color:#fca5a5;background:rgba(239,68,68,.12)}
+.muted{color:var(--muted);font-size:13px}
+.forbid{color:var(--bad);padding:2rem;text-align:center}
+a{color:var(--accent)}
+#detail{margin-top:1rem;font-size:12px}
+</style>
+</head>
+<body>
+<h1>LETAGENTSCOOK — Admin</h1>
+{% if forbidden %}
+<div class="panel forbid">Access denied. Sign in as an administrator.</div>
+<p class="muted"><a href="/">← Back to dashboard</a></p>
+{% else %}
+<p class="muted" style="margin-bottom:1rem"><a href="/">← Dashboard</a></p>
+<div class="panel stats" id="statsPanel">Loading…</div>
+<div class="panel">
+  <h2 style="font-size:1rem;margin-bottom:10px">Users</h2>
+  <div style="overflow:auto">
+    <table id="userTable"><thead><tr><th>Email</th><th>Username</th><th>Tier</th><th>Active</th><th>Created</th><th>Last login</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+  <pre id="detail" style="display:none"></pre>
+</div>
+<script>
+async function api(p,o){const r=await fetch(p,Object.assign({credentials:'include'},o||{}));return r;}
+function el(t,attrs,html){const e=document.createElement(t);if(attrs)for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);if(html!=null)e.innerHTML=html;return e;}
+(async function(){
+  const st=document.getElementById('statsPanel');
+  const rs=await api('/api/admin/summary');
+  if(!rs.ok){st.textContent='Failed to load summary';return;}
+  const s=await rs.json();
+  st.innerHTML='';
+  [['Total users',s.total_users],['Active today',s.active_users_today],['Trades today',s.trades_today],['Signups (7d)',s.new_signups_week]].forEach(([k,v])=>{
+    const d=el('div',{class:'stat'});
+    d.appendChild(el('div',{class:'k'},k));
+    d.appendChild(el('div',{class:'v'},String(v)));
+    st.appendChild(d);
+  });
+  const tb=document.querySelector('#userTable tbody');
+  const ru=await api('/api/admin/users');
+  if(!ru.ok)return;
+  const uj=await ru.json();
+  (uj.users||[]).forEach(u=>{
+    const tr=el('tr');
+    tr.appendChild(el('td',{},u.email));
+    tr.appendChild(el('td',{},u.username));
+    tr.appendChild(el('td',{},u.tier));
+    tr.appendChild(el('td',{},u.is_active?'yes':'no'));
+    tr.appendChild(el('td',{},(u.created_at||'').slice(0,19)));
+    tr.appendChild(el('td',{},(u.last_login||'—').slice(0,19)));
+    const act=el('td');
+    const b=el('button',{class:'btn'+(u.is_active?' danger':'')},u.is_active?'Suspend':'Unsuspend');
+    b.addEventListener('click',async()=>{
+      if(!confirm(u.is_active?'Suspend this user?':'Unsuspend?'))return;
+      let r=await api('/api/admin/user/'+u.id+'/suspend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({suspend:u.is_active})});
+      let j=null;try{j=await r.json();}catch(e){}
+      if(r.status===403&&j&&j.csrf_required){
+        const c=await api('/api/auth/csrf');const cj=await c.json();
+        r=await api('/api/admin/user/'+u.id+'/suspend',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':cj.csrf_token||''},body:JSON.stringify({suspend:u.is_active})});
+      }
+      if(r.ok)location.reload();
+      else alert((j&&j.error)||'Request failed');
+    });
+    const det=el('button',{class:'btn'},'Detail');
+    det.addEventListener('click',async()=>{
+      const r=await api('/api/admin/user/'+u.id);
+      const j=r.ok?await r.json():{error:'failed'};
+      document.getElementById('detail').style.display='block';
+      document.getElementById('detail').textContent=JSON.stringify(j,null,2);
+    });
+    act.appendChild(b);
+    act.appendChild(det);
+    tr.appendChild(act);
+    tb.appendChild(tr);
+  });
+})();
+</script>
+{% endif %}
+</body>
+</html>

@@ -1,0 +1,19 @@
+[Unit]
+Description=Hermes System Watcher Agent
+After=network.target hermes-dashboard.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/hermes
+Environment=PATH=/root/hermes/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EnvironmentFile=-/root/hermes/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/root/hermes/venv/bin/python /root/hermes/core/watcher_agent.py
+Restart=always
+RestartSec=30
+StandardOutput=append:/root/hermes/logs/watcher.log
+StandardError=append:/root/hermes/logs/watcher.log
+
+[Install]
+WantedBy=multi-user.target

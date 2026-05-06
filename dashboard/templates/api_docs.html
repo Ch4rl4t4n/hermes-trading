@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hermes API Documentation</title>
+  <style>
+    :root{
+      --bg:#070b14; --panel:#101827; --line:#1f2a44; --text:#e6edf7; --muted:#93a4bf; --accent:#00d4ff;
+      --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    }
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#060a13,#0b1220);color:var(--text);font:14px/1.5 Inter,Segoe UI,Arial,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:28px 18px 80px}
+    .hero{padding:18px 0 8px;border-bottom:1px solid var(--line);margin-bottom:22px}
+    h1{margin:0 0 8px;font-size:34px;letter-spacing:.01em} .sub{color:var(--muted);font-size:15px}
+    .sec{background:rgba(16,24,39,.72);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+    h2{margin:0 0 10px;font-size:18px;color:#d9f6ff}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #145b7a;color:#8ce9ff;font-size:11px}
+    pre{background:#07101f;border:1px solid #1c2a46;border-radius:10px;padding:12px;overflow:auto;color:#cde8ff}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .ep{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:10px 0;background:#0b1424}
+    .m{font-weight:700;font-size:12px;margin-right:8px}
+    .get{color:#34d399}.post{color:#60a5fa}.del{color:#fda4af}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .err li{margin:6px 0}
+    a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>Hermes API Documentation</h1>
+      <div class="sub">Elite tier — REST API</div>
+    </header>
+
+    <section class="sec">
+      <h2>Authentication</h2>
+      <p>API kľúč vygeneruješ v nastaveniach dashboardu (<a href="/">Settings</a>). Kľúč uvidíš len raz.</p>
+      <pre><code>curl -H "Authorization: Bearer hk_live_xxx" \
+  https://app.letagentscook.lol/v1/agents</code></pre>
+    </section>
+
+    <section class="sec">
+      <h2>Rate Limits</h2>
+      <p>Limit je <strong>60 requestov/minútu</strong> na každý API kľúč.</p>
+      <p>Response hlavičky: <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code></p>
+    </section>
+
+    <section class="sec">
+      <h2>Endpoints</h2>
+      <div class="ep"><span class="m get">GET</span><code>/v1/agents</code> — zoznam user + subscribed agentov</div>
+      <div class="ep"><span class="m get">GET</span><code>/v1/agents/:id</code> — detail agenta + posledných 10 obchodov</div>
+      <div class="ep"><span class="m get">GET</span><code>/v1/agents/:id/pnl?period=today|week|month|all</code> — P&amp;L štatistiky</div>
+      <div class="ep"><span class="m get">GET</span><code>/v1/agents/:id/backtest</code> — posledný backtest výsledok</div>
+      <div class="ep"><span class="m get">GET</span><code>/v1/marketplace</code> — approved marketplace listingy (verejné)</div>
+      <div class="ep"><span class="m post">POST</span><code>/v1/agents/:id/pause</code> — pause user agenta</div>
+      <div class="ep"><span class="m post">POST</span><code>/v1/agents/:id/resume</code> — resume user agenta</div>
+      <div class="ep"><span class="m post">POST</span><code>/v1/agents/:id/config</code> — update config (SL, position size, max daily trades)</div>
+      <pre><code>{
+  "data": { "...": "..." },
+  "timestamp": "2026-05-05T14:00:00+00:00"
+}</code></pre>
+    </section>
+
+    <section class="sec">
+      <h2>Error Codes</h2>
+      <ul class="err">
+        <li><strong>401 Unauthorized</strong> — chýba/neplatný API kľúč</li>
+        <li><strong>403 Forbidden</strong> — tier bez API prístupu</li>
+        <li><strong>429 Too Many Requests</strong> — prekročený rate limit</li>
+        <li><strong>500 Internal Error</strong> — interná chyba servera</li>
+      </ul>
+      <pre><code>{
+  "error": "Unauthorized",
+  "message": "Provide API key in Authorization header",
+  "code": 401
+}</code></pre>
+    </section>
+
+    <section class="sec">
+      <h2>Code Examples</h2>
+      <div class="grid">
+        <div>
+          <div class="pill">Python (requests)</div>
+          <pre><code>import requests
+
+headers = {"Authorization": "Bearer hk_live_xxx"}
+r = requests.get("https://app.letagentscook.lol/v1/agents", headers=headers, timeout=30)
+print(r.status_code, r.json())</code></pre>
+        </div>
+        <div>
+          <div class="pill">JavaScript (fetch)</div>
+          <pre><code>const r = await fetch("https://app.letagentscook.lol/v1/agents", {
+  headers: { Authorization: "Bearer hk_live_xxx" }
+});
+const data = await r.json();
+console.log(r.status, data);</code></pre>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

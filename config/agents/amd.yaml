@@ -1,0 +1,37 @@
+# Akcie (America/New_York 9:30–16:00) | Category 2 — high-beta semis, trend follow, ~3–10d
+name: "AMD Agent"
+symbol: "AMD"
+asset_type: stock
+strategy: trending
+enabled: true
+trade_usd: 90
+trading_mode: day_trading
+
+schedule:
+  timezone: "America/New_York"
+  active_hours: "09:30-16:00"
+  check_interval_seconds: 3600
+  timeframe: "1h"
+
+rule_based:
+  rsi_period: 14
+  rsi_buy_threshold: 35
+  rsi_sell_threshold: 65
+  macd_enabled: true
+  signal_confidence_threshold: 0.62
+
+llm:
+  enabled: true
+  trigger_threshold: 0.68
+  model: claude-opus-4-7
+  max_calls_per_hour: 4
+  use_sonnet_above: 0.86
+
+risk:
+  trailing_stop_pct: 4.0
+  trailing_activate_pct: 5.0
+  take_profit_pct: 10.0
+  max_trades_per_day: 6
+  max_daily_loss_pct: 2.0
+  max_position_pct: 0.06
+  atr_position_sizing: false

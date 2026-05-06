@@ -1,0 +1,15 @@
+# Portfolio rebalancing targets (percentages must sum to 100).
+rebalancing:
+  enabled: false
+  auto_rebalance: false
+  check_time: "09:00"
+  max_drift_pct: 5
+  target_allocation:
+    BTC/USD: 25
+    ETH/USD: 15
+    SOL/USD: 10
+    TSLA: 15
+    NVDA: 15
+    AMD: 10
+    GLD: 5
+    USO: 5

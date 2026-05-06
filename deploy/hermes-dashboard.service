@@ -1,0 +1,18 @@
+[Unit]
+Description=Hermes Flask dashboard (LETAGENTSCOOK)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/hermes
+Environment=PATH=/root/hermes/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/root/hermes/venv/bin/python dashboard/app.py
+Restart=always
+RestartSec=5
+
+# Hardening (still need network for Alpaca / APIs)
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

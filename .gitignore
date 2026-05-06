@@ -1,0 +1,10 @@
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+logs/
+*.log
+*.jsonl
+daily_state.json
+.DS_Store

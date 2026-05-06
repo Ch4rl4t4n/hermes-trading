@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes trading agents (LETAGENTSCOOK)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/hermes
+Environment=PATH=/root/hermes/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/root/hermes/venv/bin/python -m core.hermes
+Restart=always
+RestartSec=10
+
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

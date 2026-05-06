@@ -1,0 +1,31 @@
+name: "AVAX Agent"
+symbol: "AVAX/USD"
+asset_type: crypto
+enabled: true
+trade_usd: 40
+
+schedule:
+  timezone: "UTC"
+  active_hours: "00:00-23:59"
+  check_interval_seconds: 60
+
+rule_based:
+  rsi_period: 14
+  rsi_buy_threshold: 36
+  rsi_sell_threshold: 64
+  macd_enabled: true
+  signal_confidence_threshold: 0.63
+
+llm:
+  enabled: false
+  trigger_threshold: 0.65
+  model: haiku
+  max_calls_per_hour: 6
+  use_sonnet_above: 0.85
+
+risk:
+  trailing_stop_pct: 4.0
+  take_profit_pct: 8.0
+  max_trades_per_day: 8
+  max_daily_loss_pct: 2.0
+  max_position_pct: 0.04
