@@ -250,6 +250,8 @@ _INTERNAL_API_ALLOWED_PATHS = frozenset(
         "/api/notifications/read",
         "/api/alerts/rules",
         "/api/agents/badges",
+        "/api/support/ticket",
+        "/api/admin/support/tickets",
     }
 )
 
@@ -257,6 +259,9 @@ _INTERNAL_API_PARAMETERIZED_PATTERNS = (
     re.compile(r"^/api/admin/users/\d+/tier$"),
     re.compile(r"^/api/admin/users/\d+/detail$"),
     re.compile(r"^/api/admin/agents/\d+/toggle$"),
+    re.compile(r"^/api/admin/support/tickets/\d+$"),
+    re.compile(r"^/api/admin/support/tickets/\d+/reply$"),
+    re.compile(r"^/api/admin/support/tickets/\d+/status$"),
     re.compile(r"^/api/alerts/rules/\d+$"),
     re.compile(r"^/api/alerts/rules/\d+/toggle$"),
 )
@@ -306,6 +311,51 @@ CORS(
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 )
 db.init_engine()
+
+
+def _ensure_support_tables() -> None:
+    """Best-effort fallback for support tables when migration is unavailable."""
+    eng = db.get_engine()
+    if eng is None:
+        return
+    with eng.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS support_tickets (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    email VARCHAR(255) NOT NULL,
+                    subject VARCHAR(255) NOT NULL,
+                    message TEXT NOT NULL,
+                    status VARCHAR(20) DEFAULT 'open',
+                    priority VARCHAR(20) DEFAULT 'normal',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS support_replies (
+                    id SERIAL PRIMARY KEY,
+                    ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+                    author_email VARCHAR(255) NOT NULL,
+                    author_type VARCHAR(20) DEFAULT 'user',
+                    message TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+                """
+            )
+        )
+
+
+try:
+    _ensure_support_tables()
+except Exception:
+    log.exception("support tables ensure failed")
 
 _GOOGLE_CID = dash_config.GOOGLE_CLIENT_ID
 _GOOGLE_CS = dash_config.GOOGLE_CLIENT_SECRET
@@ -6545,6 +6595,226 @@ def admin_user_detail(user_id: int):
             "recent_trades": trades,
         }
     )
+
+
+# ── Support / Helpdesk ────────────────────────────────────────────────────────
+
+
+@app.route("/api/support/ticket", methods=["POST"])
+def create_support_ticket():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    data = request.get_json(silent=True) or {}
+    subject = str(data.get("subject") or "").strip()
+    message = str(data.get("message") or "").strip()
+    email = str(data.get("email") or request.headers.get("X-User-Email") or "").strip().lower()
+
+    if not subject or not message or not email:
+        return jsonify({"error": "Missing fields"}), 400
+
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    with eng.begin() as conn:
+        user_row = conn.execute(
+            text("SELECT id FROM users WHERE lower(email) = :email LIMIT 1"),
+            {"email": email},
+        ).mappings().first()
+        ticket = conn.execute(
+            text(
+                """
+                INSERT INTO support_tickets (user_id, email, subject, message, status, priority)
+                VALUES (:user_id, :email, :subject, :message, 'open', 'normal')
+                RETURNING id
+                """
+            ),
+            {
+                "user_id": int(user_row["id"]) if user_row else None,
+                "email": email,
+                "subject": subject,
+                "message": message,
+            },
+        ).mappings().first()
+
+    try:
+        if mailer.is_mail_configured():
+            mailer.send_smtp_email(
+                to_addr="support@letagentscook.lol",
+                subject=f"[Support] New ticket: {subject}",
+                text_body=(
+                    f"From: {email}\n"
+                    f"Ticket ID: #{int(ticket['id']) if ticket else 'n/a'}\n\n"
+                    f"Message:\n{message}\n\n"
+                    "Manage in admin support tab."
+                ),
+            )
+    except Exception:
+        log.exception("support admin notification failed")
+
+    try:
+        if mailer.is_mail_configured():
+            mailer.send_smtp_email(
+                to_addr=email,
+                subject="[Hermes] We received your support request",
+                text_body=(
+                    "Hi,\n\n"
+                    "We received your support request:\n\n"
+                    f"Subject: {subject}\n\n"
+                    "We will get back to you within 24 hours.\n\n"
+                    "— Hermes Team"
+                ),
+            )
+    except Exception:
+        log.exception("support confirmation email failed")
+
+    return jsonify({"success": True, "message": "Ticket created"})
+
+
+@app.route("/api/admin/support/tickets", methods=["GET"])
+@admin_required
+def admin_get_support_tickets():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    status_filter = str(request.args.get("status") or "all").strip().lower()
+    allowed = {"all", "open", "in-progress", "resolved", "closed"}
+    if status_filter not in allowed:
+        return jsonify({"error": "Invalid status"}), 400
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    base_query = """
+        SELECT t.id, t.user_id, t.email, t.subject, t.message, t.status, t.priority,
+               t.created_at, t.updated_at,
+               u.tier as user_tier,
+               (SELECT COUNT(*) FROM support_replies r WHERE r.ticket_id = t.id) as reply_count
+        FROM support_tickets t
+        LEFT JOIN users u ON u.id = t.user_id
+    """
+    params: dict[str, Any] = {}
+    if status_filter != "all":
+        base_query += " WHERE t.status = :status "
+        params["status"] = status_filter
+    base_query += " ORDER BY t.created_at DESC LIMIT 100"
+
+    with eng.connect() as conn:
+        rows = conn.execute(text(base_query), params).mappings().all()
+
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        d = dict(r)
+        for k in ("created_at", "updated_at"):
+            if d.get(k) is not None and hasattr(d[k], "isoformat"):
+                d[k] = d[k].isoformat()
+        out.append(d)
+    return jsonify({"tickets": out})
+
+
+@app.route("/api/admin/support/tickets/<int:ticket_id>", methods=["GET"])
+@admin_required
+def admin_get_support_ticket_detail(ticket_id: int):
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.connect() as conn:
+        ticket = conn.execute(
+            text("SELECT * FROM support_tickets WHERE id = :id"),
+            {"id": int(ticket_id)},
+        ).mappings().first()
+        if ticket is None:
+            return jsonify({"error": "Not found"}), 404
+        replies = conn.execute(
+            text("SELECT * FROM support_replies WHERE ticket_id = :id ORDER BY created_at ASC"),
+            {"id": int(ticket_id)},
+        ).mappings().all()
+
+    ticket_out = dict(ticket)
+    for k in ("created_at", "updated_at"):
+        if ticket_out.get(k) is not None and hasattr(ticket_out[k], "isoformat"):
+            ticket_out[k] = ticket_out[k].isoformat()
+    replies_out: list[dict[str, Any]] = []
+    for r in replies:
+        d = dict(r)
+        if d.get("created_at") is not None and hasattr(d["created_at"], "isoformat"):
+            d["created_at"] = d["created_at"].isoformat()
+        replies_out.append(d)
+    return jsonify({"ticket": ticket_out, "replies": replies_out})
+
+
+@app.route("/api/admin/support/tickets/<int:ticket_id>/reply", methods=["POST"])
+@admin_required
+def admin_reply_support_ticket(ticket_id: int):
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    data = request.get_json(silent=True) or {}
+    message = str(data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "Empty message"}), 400
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    with eng.begin() as conn:
+        ticket = conn.execute(
+            text("SELECT id, email, subject FROM support_tickets WHERE id = :id"),
+            {"id": int(ticket_id)},
+        ).mappings().first()
+        if ticket is None:
+            return jsonify({"error": "Not found"}), 404
+        conn.execute(
+            text(
+                """
+                INSERT INTO support_replies (ticket_id, author_email, author_type, message)
+                VALUES (:ticket_id, :author_email, 'admin', :message)
+                """
+            ),
+            {
+                "ticket_id": int(ticket_id),
+                "author_email": "support@letagentscook.lol",
+                "message": message,
+            },
+        )
+        conn.execute(
+            text("UPDATE support_tickets SET status = 'in-progress', updated_at = NOW() WHERE id = :id"),
+            {"id": int(ticket_id)},
+        )
+
+    try:
+        if mailer.is_mail_configured():
+            mailer.send_smtp_email(
+                to_addr=str(ticket["email"]),
+                subject=f"[Hermes Support] Re: {str(ticket['subject'])}",
+                text_body=f"{message}\n\n---\nHermes Support Team\nhttps://trading.letagentscook.lol",
+            )
+    except Exception:
+        log.exception("support reply email failed")
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/support/tickets/<int:ticket_id>/status", methods=["POST"])
+@admin_required
+def admin_update_support_ticket_status(ticket_id: int):
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    data = request.get_json(silent=True) or {}
+    status = str(data.get("status") or "").strip().lower()
+    if status not in {"open", "in-progress", "resolved", "closed"}:
+        return jsonify({"error": "Invalid status"}), 400
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.begin() as conn:
+        row = conn.execute(
+            text("UPDATE support_tickets SET status = :status, updated_at = NOW() WHERE id = :id RETURNING id"),
+            {"status": status, "id": int(ticket_id)},
+        ).first()
+    if row is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({"success": True})
 
 
 # ── No-code Agent Builder ────────────────────────────────────────────────────
