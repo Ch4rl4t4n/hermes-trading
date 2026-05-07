@@ -1,0 +1,136 @@
+const iconBase = {
+  width: 20,
+  height: 20,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.9,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+};
+
+const navItems = [
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    icon: (
+      <svg {...iconBase}>
+        <rect x="3.5" y="3.5" width="7.5" height="7.5" />
+        <rect x="13" y="3.5" width="7.5" height="7.5" />
+        <rect x="3.5" y="13" width="7.5" height="7.5" />
+        <rect x="13" y="13" width="7.5" height="7.5" />
+      </svg>
+    ),
+  },
+  {
+    key: "marketplace",
+    label: "Marketplace",
+    icon: (
+      <svg {...iconBase}>
+        <path d="M5 8h14l-1.4 10.2a1.2 1.2 0 0 1-1.2 1H7.6a1.2 1.2 0 0 1-1.2-1z" />
+        <path d="M9 8a3 3 0 0 1 6 0" />
+      </svg>
+    ),
+  },
+  {
+    key: "builder",
+    label: "Builder",
+    icon: (
+      <svg {...iconBase}>
+        <path d="m4 20 8-8" />
+        <path d="m14 6 4-4 4 4-4 4z" />
+        <path d="M12 8 4 16l4 4 8-8" />
+      </svg>
+    ),
+  },
+  {
+    key: "leaderboard",
+    label: "Leaderboard",
+    icon: (
+      <svg {...iconBase}>
+        <path d="M8 21h8" />
+        <path d="M12 17v4" />
+        <path d="M7 4h10l-1 6a4 4 0 0 1-4 3 4 4 0 0 1-4-3z" />
+      </svg>
+    ),
+  },
+  {
+    key: "backtest",
+    label: "Backtest",
+    icon: (
+      <svg {...iconBase}>
+        <path d="M3 3v18h18" />
+        <path d="m7 14 4-4 3 3 5-6" />
+      </svg>
+    ),
+  },
+];
+
+const adminItem = {
+  key: "admin",
+  label: "Admin",
+  icon: (
+    <svg {...iconBase}>
+      <path d="M12 3 4 7v6c0 4.5 2.8 7.4 8 8 5.2-.6 8-3.5 8-8V7z" />
+      <path d="M9.5 12.5 11 14l3.5-3.5" />
+    </svg>
+  ),
+};
+
+export default function Sidebar({ page, onNav, user, onLogout }) {
+  const items = user?.isAdmin ? [...navItems, adminItem] : navItems;
+  return (
+    <aside className="sidebar" style={{ background: "oklch(0.12 0.02 260)" }}>
+      <div className="sidebar-logo" style={{ letterSpacing: "0.06em", fontWeight: 700 }}>
+        <span style={{ color: "oklch(0.72 0.18 295)", filter: "drop-shadow(0 0 20px oklch(0.72 0.18 295 / .45))" }}>⚡</span>
+        HERMES
+      </div>
+
+      <nav className="sidebar-nav">
+        {items.map((item) => {
+          const active = page === item.key;
+          return (
+            <button
+              key={item.key}
+              className={`sidebar-item ${active ? "active" : ""}`}
+              onClick={() => onNav(item.key)}
+              style={{
+                borderLeft: active ? "2px solid oklch(0.72 0.18 295)" : "2px solid transparent",
+                background: active ? "oklch(0.72 0.18 295 / 0.15)" : "transparent",
+                color: active ? "oklch(0.82 0.14 295)" : "var(--text-3, var(--text-muted))",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+              onMouseEnter={(e) => {
+                if (!active) e.currentTarget.style.background = "oklch(1 0 0 / 0.04)";
+              }}
+              onMouseLeave={(e) => {
+                if (!active) e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <span style={{ width: 18, height: 18, display: "inline-flex", color: "currentColor" }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="sidebar-user">
+        <div className="sidebar-avatar" style={{ background: "linear-gradient(135deg,#8b5cf6,#06b6d4)" }}>
+          {(user?.name || user?.handle || "A")[0]}
+        </div>
+        <div className="col" style={{ minWidth: 0, gap: 2 }}>
+          <strong style={{ fontSize: 13 }}>{user?.name || user?.handle}</strong>
+          <span className="text-3 fs-12" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {user?.email || "admin@hermes.app"}
+          </span>
+        </div>
+        <span className="pill pill-violet">{String(user?.tier || "basic").toUpperCase()}</span>
+        <button className="sidebar-logout" onClick={onLogout}>
+          Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+

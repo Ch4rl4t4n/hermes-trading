@@ -236,6 +236,7 @@ _INTERNAL_API_ALLOWED_PATHS = frozenset(
         "/api/agent-builder/my-agents",
         "/api/agent-builder/create",
         "/api/agent-builder/ai-summary",
+        "/api/ai/builder",
         "/api/admin/users",
         "/api/admin/revenue",
         "/api/admin/agents",
@@ -1372,6 +1373,10 @@ def _fetch_recent_orders(symbol: str, limit: int = 10) -> list[dict]:
 
 
 def _trades_today_count(symbol: str) -> int:
+    db_stats = _paper_trade_stats_today(symbol)
+    if db_stats is not None:
+        return int(db_stats["trade_count"])
+
     orders = _fetch_recent_orders(symbol, limit=50)
     today = datetime.now(timezone.utc).date()
     n = 0
@@ -1386,6 +1391,44 @@ def _trades_today_count(symbol: str) -> int:
         except Exception:  # noqa: BLE001
             continue
     return n
+
+
+def _paper_trade_stats_today(symbol: str) -> dict[str, float | int] | None:
+    _resolve_identity()
+    if db.SessionLocal is None:
+        return None
+    u = getattr(g, "db_user", None)
+    if u is None:
+        return None
+
+    sym = (symbol or "").strip()
+    if not sym:
+        return {"pnl_usd": 0.0, "trade_count": 0}
+    sym_alt = sym.replace("/", "-")
+    sess = db.db_session()
+    try:
+        row = sess.execute(
+            text(
+                """
+                SELECT
+                    COALESCE(SUM(pt.pnl), 0)::double precision AS pnl_usd,
+                    COUNT(*)::int AS trade_count
+                FROM paper_trades pt
+                WHERE pt.user_id = :uid
+                  AND DATE(pt.timestamp AT TIME ZONE 'UTC') = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
+                  AND (pt.symbol = :sym OR pt.symbol = :sym_alt)
+                """
+            ),
+            {"uid": int(u.id), "sym": sym, "sym_alt": sym_alt},
+        ).mappings().first()
+    except Exception as exc:  # noqa: BLE001
+        log.debug("paper trade stats today failed for %s: %s", sym, exc)
+        return {"pnl_usd": 0.0, "trade_count": 0}
+
+    return {
+        "pnl_usd": float((row or {}).get("pnl_usd") or 0.0),
+        "trade_count": int((row or {}).get("trade_count") or 0),
+    }
 
 
 # ── Bar history (for regime detection) ──────────────────────────────────────
@@ -1499,6 +1542,10 @@ def _read_llm_decisions(symbol: Optional[str] = None, n: int = 20) -> list[dict]
 
 
 def _realized_pnl_today(symbol: str) -> float:
+    db_stats = _paper_trade_stats_today(symbol)
+    if db_stats is not None:
+        return round(float(db_stats["pnl_usd"]), 4)
+
     _resolve_identity()
     if getattr(g, "db_account", None) is not None and db.SessionLocal is not None:
         try:
@@ -7325,6 +7372,60 @@ def api_agent_builder_ai_summary():
     cfg = data.get("config_json") if isinstance(data.get("config_json"), dict) else {}
     summary = generate_ai_summary_sync(symbol_to_pair(sym), st, cfg)
     return jsonify({"summary": summary})
+
+
+@app.route("/api/ai/builder", methods=["POST"])
+@login_required
+def ai_builder():
+    import anthropic  # noqa: PLC0415
+    import re  # noqa: PLC0415
+    import json as json_lib  # noqa: PLC0415
+
+    data = request.get_json(silent=True) or {}
+    messages = data.get("messages", [])
+    if not isinstance(messages, list):
+        messages = []
+
+    system_prompt = """You are an AI trading agent builder for Hermes Trading Platform.
+Help users create trading agents through conversation.
+When user describes an agent, extract parameters and respond in this EXACT format:
+
+<message>Your friendly 1-2 sentence response here</message>
+<config>{"name": "...", "symbol": "BTC/USD|ETH/USD|SOL/USD|GLD|AAPL|NVDA|EUR/USD", "category": "crypto|stocks|commodities|forex", "strategy": "Momentum|Swing|Scalping|DCA|Grid", "risk": "low|medium|high", "indicators": ["RSI", "MACD", "EMA", "BB"]}</config>
+
+If you need more info, ask ONE clarifying question and omit <config>.
+Keep responses short (1-2 sentences). Be friendly and trading-focused."""
+
+    try:
+        ai_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        response = ai_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=400,
+            system=system_prompt,
+            messages=[
+                {"role": m.get("role"), "content": m.get("content")}
+                for m in messages[-10:]
+                if isinstance(m, dict) and m.get("role") in {"user", "assistant"} and m.get("content")
+            ],
+        )
+        text_parts: list[str] = []
+        for block in response.content:
+            if getattr(block, "type", None) == "text":
+                text_parts.append(getattr(block, "text", "") or "")
+        full = "".join(text_parts).strip()
+        msg_match = re.search(r"<message>(.*?)</message>", full, re.DOTALL)
+        cfg_match = re.search(r"<config>(.*?)</config>", full, re.DOTALL)
+        message = msg_match.group(1).strip() if msg_match else full.strip()
+        agent_config = None
+        if cfg_match:
+            try:
+                agent_config = json_lib.loads(cfg_match.group(1))
+            except Exception:  # noqa: BLE001
+                pass
+        return jsonify({"message": message, "agentConfig": agent_config})
+    except Exception as e:  # noqa: BLE001
+        app.logger.error(f"AI builder error: {e}")
+        return jsonify({"message": "I'm having trouble right now. Try describing your agent again!", "agentConfig": None})
 
 
 @app.route("/api/agents/pnl", methods=["GET"])
