@@ -33,8 +33,8 @@ function generateSparkline(entry, points = 30) {
 
 function topRankStyle(rank) {
   if (rank === 1) return { borderColor: "oklch(0.82 0.14 75)", color: "oklch(0.9 0.1 75)" };
-  if (rank === 2) return { borderColor: "oklch(0.80 0.02 260)", color: "oklch(0.88 0.01 260)" };
-  if (rank === 3) return { borderColor: "oklch(0.72 0.12 55)", color: "oklch(0.86 0.09 55)" };
+  if (rank === 2) return { borderColor: "oklch(0.75 0.04 260)", color: "oklch(0.75 0.04 260)" };
+  if (rank === 3) return { borderColor: "oklch(0.65 0.12 55)", color: "oklch(0.65 0.12 55)" };
   return { borderColor: "transparent", color: "var(--text-2)" };
 }
 

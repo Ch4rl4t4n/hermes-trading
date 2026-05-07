@@ -128,7 +128,7 @@ export default function Admin({ onToast }) {
               <div key={agent.id} className="row between fs-13" style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                 <span>{`${agent.name} · ${agent.symbol}`}</span>
                 <div className="row gap-2">
-                  <span className="text-3">{`${agent.subscriber_count} subs`}</span>
+                  <span className="text-3">{`${agent.subscriber_count || 0} subs`}</span>
                   <button type="button" className={`pill ${agent.show_in_leaderboard ? "pill-green" : "pill-red"}`} onClick={() => toggleAgent(agent)}>
                     {agent.show_in_leaderboard ? "active" : "inactive"}
                   </button>
