@@ -169,6 +169,8 @@ from core.tier_access import (
     unrestricted_features_payload,
     user_real_account_forbidden,
 )
+from hermes_api_v2.core.config import settings as fastapi_v2_settings
+from hermes_api_v2.core.security import create_fastapi_token
 from core.models import (
     Account,
     Announcement,
@@ -241,6 +243,7 @@ _INTERNAL_API_ALLOWED_PATHS = frozenset(
         "/api/system-events",
         "/api/trades/history",
         "/api/auth/status",
+        "/api/v1/auth/fastapi-token",
         "/api/settings/weekly-report",
         "/api/telegram/connect-token",
         "/api/telegram/disconnect",
@@ -589,6 +592,7 @@ def _csrf_protect():
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/resend-verification",
+        "/api/v1/auth/fastapi-token",
         "/api/telegram/webhook",
         "/api/stripe/webhook",
     ):
@@ -2521,6 +2525,25 @@ def auth_status():
         "backup_codes_remaining": info.get("backup_codes_remaining", 0),
         "features": unrestricted_features_payload(),
     })
+
+
+@app.route("/api/v1/auth/fastapi-token", methods=["POST"])
+@login_required
+def issue_fastapi_token():
+    """Bridge endpoint: issue a FastAPI v2 JWT for currently authenticated DB user."""
+    _resolve_identity()
+    if getattr(g, "auth_kind", None) != "db" or not getattr(g, "db_user", None):
+        return jsonify({"error": "A registered account is required."}), 400
+
+    u = g.db_user
+    try:
+        token = create_fastapi_token(str(u.id), str(u.tier or "basic"))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("fastapi token issue failed: %s", exc)
+        return jsonify({"error": "Unable to issue FastAPI token"}), 500
+
+    expires_in = int(getattr(fastapi_v2_settings, "fastapi_jwt_exp_minutes", 60) * 60)
+    return jsonify({"fastapi_token": token, "expires_in": expires_in})
 
 
 @app.route("/api/settings/weekly-report", methods=["POST"])

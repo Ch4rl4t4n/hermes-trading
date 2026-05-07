@@ -9,10 +9,10 @@
 ### Server
 - **IP:** 46.224.120.151 (Ubuntu 8GB, Hetzner)
 - **URLs:** https://letagentscook.lol (marketing) | https://app.letagentscook.lol (app)
-- **Systemd services:** hermes-dashboard | hermes-watcher | hermes-agents
+- **Systemd services:** hermes-dashboard | hermes-watcher | hermes-agents | hermes-api
 
 ### Stack
-- **Backend:** Flask (Python) + PostgreSQL + Redis (plánovaný)
+- **Backend:** Flask (Python) + FastAPI v2 (hybrid) + PostgreSQL + Redis
 - **Frontend:** Single-file SPA — `index.html` (~9225 riadkov, vanilla JS)
 - **Auth:** bcrypt + Google OAuth (Flask-Dance)
 - **Email:** Gmail SMTP
@@ -26,6 +26,11 @@
 | Súbor | Riadky | Popis |
 |-------|--------|-------|
 | `/root/hermes/dashboard/app.py` | ~4735 | Hlavná Flask app, všetky API endpointy |
+| `/root/hermes/hermes_api_v2/main.py` | ~40 | FastAPI v2 app assembly + lifespan (DB/Redis) |
+| `/root/hermes/hermes_api_v2/dependencies.py` | ~90 | JWT auth dependency + DB user lookup |
+| `/root/hermes/hermes_api_v2/api/v2/agents.py` | ~220 | `/api/v2/agents*` endpointy |
+| `/root/hermes/hermes_api_v2/api/v2/leaderboard.py` | ~130 | `/api/v2/leaderboard` + Redis cache TTL 60s |
+| `/root/hermes/hermes_api_v2/api/v2/websocket.py` | ~190 | `WS /api/v2/ws/pnl` live streaming |
 | `/root/hermes/dashboard/templates/index.html` | ~9225 | Celý frontend (HTML + CSS + JS v jednom) |
 | `/root/hermes/core/watcher_agent.py` | ~865 | Monitoring, alerts, weekly report, paper trades |
 | `/root/hermes/core/agent_marketplace.py` | — | Marketplace + record_paper_trade() |
@@ -60,6 +65,7 @@ referrals           — id, referrer_id, referred_id, created_at, bonus_granted
 ```
 AUTH
   GET/POST  /api/auth/status|login|register
+  POST      /api/v1/auth/fastapi-token
 
 MARKETPLACE
   GET       /api/marketplace/agents|slots
@@ -104,6 +110,14 @@ SHARING
 
 ADMIN
   POST      /api/admin/assign-demo-agents
+
+FASTAPI V2 (nové)
+  GET       /api/v2/agents
+  GET       /api/v2/agents/:agent_id/pnl
+  GET       /api/v2/agents/:agent_id/trades
+  POST      /api/v2/agents/:agent_id/pause
+  GET       /api/v2/leaderboard?period=7d|30d|all
+  WS        /api/v2/ws/pnl
 ```
 
 ---
