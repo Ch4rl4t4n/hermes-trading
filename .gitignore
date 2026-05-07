@@ -8,3 +8,5 @@ logs/
 *.jsonl
 daily_state.json
 .DS_Store
+.env.backup
+.env
