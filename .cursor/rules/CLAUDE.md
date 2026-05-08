@@ -232,7 +232,7 @@ FASTAPI V2 (nové)
 
 ### Fáza 4 (UX/UI & Mobile) — ĎALŠIA
 - [x] Mobile responsiveness (safe-area, bottom nav, swarm KPI grid, narrow agents grid)
-- [ ] PWA / mobile app
+- [x] PWA / mobile app (manifest PNG ikony, scope, apple-touch-icon, SW cache bump)
 - [x] Dark/light mode toggle
 - [x] Accessibility (základ: skip link, focus-visible, modal Tab trap, reduced motion, ARIA hlavičiek/navigácie)
 
