@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { createAgentFromConversation, deployAgent } from "../api/builder";
+import VoiceButton from "../components/VoiceButton";
 
 const wizardSteps = ["Strategy", "Risk", "Schedule", "Review"];
 
@@ -38,14 +39,17 @@ export default function Builder({ onToast, onNav }) {
   const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
   const progress = `${(step / 4) * 100}%`;
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg = { role: "user", content: input.trim() };
+  const sendMessage = async (explicitText) => {
+    const normalizedText = String(explicitText ?? input).trim();
+    if (!normalizedText || loading) return;
+    const userMsg = { role: "user", content: normalizedText };
     setMessages((prev) => [...prev, userMsg]);
-    setInput("");
+    if (explicitText === undefined) setInput("");
     setLoading(true);
     try {
-      const res = await createAgentFromConversation([...messages, userMsg]);
+      const result = await createAgentFromConversation([...messages, userMsg]);
+      const res = result.data;
+      if (!res) throw new Error("builder-response-empty");
       setMessages((prev) => [...prev, { role: "assistant", content: res.message }]);
       if (res.agentConfig) {
         setAgentPreview(res.agentConfig);
@@ -65,7 +69,8 @@ export default function Builder({ onToast, onNav }) {
     if (!agentPreview || loading) return;
     setLoading(true);
     try {
-      await deployAgent(agentPreview);
+      const result = await deployAgent(agentPreview);
+      if (!result.data) throw new Error("deploy-failed");
       setConfirmed(true);
       onToast?.("Agent deployed successfully!");
       setTimeout(() => onNav?.("dashboard"), 1200);
@@ -384,6 +389,13 @@ export default function Builder({ onToast, onNav }) {
         >
           Send
         </button>
+        <VoiceButton
+          onTranscript={async (transcript) => {
+            setInput(transcript);
+            await sendMessage(transcript);
+          }}
+          disabled={loading}
+        />
       </div>
     </div>
   );

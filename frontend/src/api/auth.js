@@ -1,5 +1,6 @@
 import client from "./client";
 import { demoUser } from "../data/demoData";
+import { STORAGE_KEYS } from "../utils/storageKeys";
 
 function normalizeUser(payload) {
   if (!payload) return null;
@@ -22,15 +23,15 @@ export async function loginWithEmail(email, password, totpCode = "") {
       totp_code: totpCode,
     });
     if (res?.data?.token) {
-      localStorage.setItem("hermes_token", res.data.token);
+      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, res.data.token);
     }
     if (res?.data?.csrf_token) {
-      localStorage.setItem("hermes_csrf_token", res.data.csrf_token);
+      localStorage.setItem(STORAGE_KEYS.AUTH_CSRF_TOKEN, res.data.csrf_token);
     }
-    return { success: true, user: normalizeUser(res?.data?.user || res?.data) };
+    return { data: normalizeUser(res?.data?.user || res?.data), error: null };
   } catch (err) {
     return {
-      success: false,
+      data: null,
       error: err?.response?.data?.error || "Login failed",
     };
   }
@@ -42,6 +43,7 @@ export async function login(payload) {
 
 export async function loginWithGoogle() {
   window.location.href = "/login/google";
+  return { data: true, error: null };
 }
 
 export async function googleLogin() {
@@ -49,35 +51,36 @@ export async function googleLogin() {
 }
 
 export async function logout() {
-  localStorage.removeItem("hermes_token");
-  localStorage.removeItem("hermes_csrf_token");
+  localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+  localStorage.removeItem(STORAGE_KEYS.AUTH_CSRF_TOKEN);
   try {
     await client.post("/api/auth/logout");
+    return { data: true, error: null };
   } catch {
-    // ignore
+    return { data: false, error: null };
   }
 }
 
 export async function getCurrentUser() {
   try {
     const res = await client.get("/api/auth/me");
-    return normalizeUser(res.data);
+    return { data: normalizeUser(res.data), error: null };
   } catch {
     try {
       const statusRes = await client.get("/api/auth/status");
       if (statusRes?.data?.authenticated) {
-        return normalizeUser({
+        return { data: normalizeUser({
           ...statusRes.data.user,
           username: statusRes.data.username,
           email: statusRes.data.email,
           tier: statusRes.data.tier,
           is_admin: statusRes.data.is_admin,
           role: statusRes.data.role,
-        });
+        }), error: null };
       }
-      return null;
+      return { data: null, error: null };
     } catch {
-      return null;
+      return { data: null, error: "auth_unavailable" };
     }
   }
 }
@@ -85,8 +88,8 @@ export async function getCurrentUser() {
 export async function register(payload) {
   try {
     const { data } = await client.post("/api/auth/register", payload);
-    return data;
+    return { data, error: null };
   } catch {
-    return { user: demoUser };
+    return { data: { user: demoUser }, error: "register_failed" };
   }
 }

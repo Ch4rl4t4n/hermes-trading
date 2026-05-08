@@ -1,17 +1,23 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { fetchAgents, pauseAgent } from "./api/agents";
 import { getCurrentUser, logout } from "./api/auth";
 import { getDashboardData } from "./api/dashboard";
 import Layout from "./components/layout/Layout";
+import CoachMessage from "./components/CoachMessage";
+import InstallPrompt from "./components/InstallPrompt";
+import OfflineBanner from "./components/OfflineBanner";
 import Toast from "./components/ui/Toast";
-import { activeAlerts, demoAgents, demoUser, marketplaceAgents, recentTrades as demoRecentTrades } from "./data/demoData";
-import Backtest from "./pages/Backtest";
-import Builder from "./pages/Builder";
+import { activeAlerts, demoAgents, demoUser, recentTrades as demoRecentTrades } from "./data/demoData";
 import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
 import Login from "./pages/Login";
 import Marketplace from "./pages/Marketplace";
-import Admin from "./pages/Admin";
+import Developer from "./pages/Developer";
+import Settings from "./pages/Settings";
+const Builder = lazy(() => import("./pages/Builder"));
+const Backtest = lazy(() => import("./pages/Backtest"));
+const Admin = lazy(() => import("./pages/Admin"));
+const AdminSwarm = lazy(() => import("./pages/AdminSwarm"));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -21,10 +27,11 @@ function App() {
   const [recentTrades, setRecentTrades] = useState(demoRecentTrades);
   const [alerts, setAlerts] = useState(activeAlerts);
   const [toast, setToast] = useState(null);
+  const totalPnl = agents.reduce((sum, a) => sum + Number(a.pnlUsd || 0), 0);
 
   useEffect(() => {
-    getCurrentUser().then((u) => {
-      if (u) setUser(u);
+    getCurrentUser().then((result) => {
+      if (result.data) setUser(result.data);
       setLoading(false);
     });
   }, []);
@@ -32,14 +39,14 @@ function App() {
   useEffect(() => {
     if (!user) return;
     getDashboardData()
-      .then((payload) => {
-        if (!payload) throw new Error("dashboard-unavailable");
-        fetchAgents().then((rows) => setAgents(rows)).catch(() => setAgents(demoAgents));
-        if (Array.isArray(payload.recentTrades)) setRecentTrades(payload.recentTrades);
-        if (Array.isArray(payload.alerts)) setAlerts(payload.alerts);
+      .then((result) => {
+        if (!result.data) throw new Error("dashboard-unavailable");
+        fetchAgents().then((rowsResult) => setAgents(rowsResult.data || demoAgents)).catch(() => setAgents(demoAgents));
+        if (Array.isArray(result.data.recentTrades)) setRecentTrades(result.data.recentTrades);
+        if (Array.isArray(result.data.alerts)) setAlerts(result.data.alerts);
       })
       .catch(() => {
-        fetchAgents().then((rows) => setAgents(rows)).catch(() => setAgents(demoAgents));
+        fetchAgents().then((rowsResult) => setAgents(rowsResult.data || demoAgents)).catch(() => setAgents(demoAgents));
         setRecentTrades(demoRecentTrades);
         setAlerts(activeAlerts);
       });
@@ -49,7 +56,7 @@ function App() {
 
   const onToggleAgent = async (agentId) => {
     const response = await pauseAgent(agentId).catch(() => null);
-    const pausedFromApi = typeof response?.paused === "boolean" ? response.paused : null;
+    const pausedFromApi = typeof response?.data?.paused === "boolean" ? response.data.paused : null;
     setAgents((prev) =>
       prev.map((agent) => {
         const isTarget = agent.id === agentId || agent.symbol === agentId;
@@ -70,11 +77,14 @@ function App() {
       recentTrades={recentTrades}
     />
   );
-  if (page === "marketplace") content = <Marketplace agents={marketplaceAgents} onToast={onToast} />;
+  if (page === "marketplace") content = <Marketplace agents={[]} user={user} onToast={onToast} />;
   if (page === "builder") content = <Builder user={user} onToast={onToast} onNav={setPage} />;
   if (page === "leaderboard") content = <Leaderboard onToast={onToast} />;
   if (page === "backtest") content = <Backtest />;
-  if (page === "admin" && user?.isAdmin) content = <Admin />;
+  if (page === "settings") content = <Settings />;
+  if (page === "developer") content = <Developer user={user} />;
+  if (page === "admin" && user?.isAdmin) content = <Admin onToast={onToast} onNav={setPage} />;
+  if (page === "admin-swarm" && user?.isAdmin) content = <AdminSwarm onToast={onToast} onNav={setPage} />;
 
   if (loading) {
     return (
@@ -100,8 +110,11 @@ function App() {
           setUser(null);
         }}
       >
-        {content}
+        <Suspense fallback={<div className="glass" style={{ padding: 12, margin: 16 }}>Loading page...</div>}>{content}</Suspense>
       </Layout>
+      <OfflineBanner />
+      <CoachMessage totalPnl={totalPnl} />
+      <InstallPrompt />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );

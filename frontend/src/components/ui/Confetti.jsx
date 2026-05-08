@@ -1,14 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
+import { sendNotification } from "../../utils/notifications";
+import { sounds } from "../../utils/sounds";
+import { useVoice } from "../../hooks/useVoice";
+import { STORAGE_KEYS } from "../../utils/storageKeys";
+
+function seeded(index, salt) {
+  const value = Math.sin(index * 97.13 + salt * 31.7) * 10000;
+  return value - Math.floor(value);
+}
 
 export default function Confetti({ trigger, duration = 3000 }) {
   const [active, setActive] = useState(false);
+  const { speak, isSupported } = useVoice();
 
   useEffect(() => {
     if (!trigger) return undefined;
-    setActive(true);
+    const activateTimer = setTimeout(() => setActive(true), 0);
+    sounds.profit();
+    const voiceEnabledRaw = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEYS.VOICE_ENABLED) : null;
+    const voiceEnabled = voiceEnabledRaw === null ? true : voiceEnabledRaw === "true";
+    if (voiceEnabled && isSupported.tts) {
+      const messages = [
+        "Trade closed in profit. Well done.",
+        "Another win. Momentum is building.",
+        "Profit secured. Agent performing well.",
+        "Positive return achieved.",
+        "Target reached. Excellent execution.",
+      ];
+      const msg = messages[Math.floor(Math.random() * messages.length)];
+      speak(msg);
+    }
+    sendNotification("💰 Trade Closed", "Your agent secured a profit!");
     const timer = setTimeout(() => setActive(false), duration);
-    return () => clearTimeout(timer);
-  }, [trigger, duration]);
+    return () => {
+      clearTimeout(activateTimer);
+      clearTimeout(timer);
+    };
+  }, [duration, isSupported.tts, speak, trigger]);
 
   const pieces = useMemo(
     () =>
@@ -21,14 +49,14 @@ export default function Confetti({ trigger, duration = 3000 }) {
           "oklch(0.65 0.2 25)",
           "oklch(0.85 0.15 200)",
         ][i % 5],
-        left: `${Math.random() * 100}%`,
-        delay: `${Math.random() * 2}s`,
-        duration: `${2 + Math.random() * 2}s`,
-        size: `${6 + Math.random() * 8}px`,
-        rotation: `${Math.random() * 360}deg`,
-        circle: Math.random() > 0.5,
+        left: `${seeded(i, 1) * 100}%`,
+        delay: `${seeded(i, 2) * 2}s`,
+        duration: `${2 + seeded(i, 3) * 2}s`,
+        size: `${6 + seeded(i, 4) * 8}px`,
+        rotation: `${seeded(i, 5) * 360}deg`,
+        circle: seeded(i, 6) > 0.5,
       })),
-    [trigger],
+    [],
   );
 
   if (!active) return null;

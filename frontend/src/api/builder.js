@@ -3,16 +3,16 @@ import client from "./client";
 export async function createAgentFromConversation(messages) {
   try {
     const res = await client.post("/api/ai/builder", { messages });
-    return res.data;
+    return { data: res.data, error: null };
   } catch {
-    return parseAgentLocally(messages);
+    return { data: parseAgentLocally(messages), error: "fallback_local_parser" };
   }
 }
 
 export async function deployAgent(agentConfig) {
   try {
     const res = await client.post("/api/agents/create", agentConfig);
-    return res.data;
+    return { data: res.data, error: null };
   } catch {
     const symbolRaw = String(agentConfig?.symbol || "BTC/USD").toUpperCase();
     const symbol = symbolRaw.replace("/USD", "").replace("-USD", "").replace("/", "");
@@ -26,16 +26,20 @@ export async function deployAgent(agentConfig) {
           : strategyLower.includes("dca")
             ? "dca"
             : "momentum";
-    const fallback = await client.post("/api/agent-builder/create", {
-      name: agentConfig?.name || "AI Agent",
-      symbol,
-      strategy_type: strategyType,
-      config_json: {
-        risk: agentConfig?.risk || "medium",
-        indicators: Array.isArray(agentConfig?.indicators) ? agentConfig.indicators : ["RSI", "EMA"],
-      },
-    });
-    return fallback.data;
+    try {
+      const fallback = await client.post("/api/agent-builder/create", {
+        name: agentConfig?.name || "AI Agent",
+        symbol,
+        strategy_type: strategyType,
+        config_json: {
+          risk: agentConfig?.risk || "medium",
+          indicators: Array.isArray(agentConfig?.indicators) ? agentConfig.indicators : ["RSI", "EMA"],
+        },
+      });
+      return { data: fallback.data, error: "fallback_agent_builder_endpoint" };
+    } catch (error) {
+      return { data: null, error };
+    }
   }
 }
 
