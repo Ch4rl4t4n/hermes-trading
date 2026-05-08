@@ -16,6 +16,20 @@
 
 ---
 
+## Phase 4.5 — Planned queue (Owner-only Universal CMS)
+
+**Štart až po dokončení aktuálne otvorených položiek** v produktovej roadmape (prehľad nižšie / **`CLAUDE.md` → Fáza 5 nezaškrtnuté úlohy**) alebo po výslovnom GO vlastníka.
+
+| Položka | Popis |
+|---------|--------|
+| **Názov** | Universal CMS & Design System Regenerator (interné, bez dopadu na bežných userov) |
+| **Owner** | Jedna rola `owner` (nie len „admin“ tier); výhradný prístup |
+| **Ciele** | Universal import (ZIP/JSON/CSS/Tailwind/text), AI analyze/remap/generate, manuálny UI editor, história verzií, one-click apply na web + PWA |
+| **Hermes stack** | Vite React + Flask/FastAPI + Postgres + Redis + Anthropic (nie povinný Next/shadcn z pôvodného PDF úvodníka) |
+| **Detail špecifikácie** | `.cursor/rules/CLAUDE.md` — sekcia **Fáza 4.5** (Verzia špecu 1.6 \| 8. mája 2026 zadaná vlastníkom) |
+
+---
+
 ## Wishlist — fázy produktu (prehľad)
 
 Rozdelenie práce podľa predstavy „dashboard → dáta → logika → produkcia“. S `HERMES` webom už máš **sledovanie** agentov (ceny, stav, kill switch); **nastavovanie** agentov z UI (YAML / pause / parametre v prehliadači) je ďalší krok v kóde, nie je ešte kompletné API.

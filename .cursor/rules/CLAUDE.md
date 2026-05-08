@@ -231,11 +231,72 @@ FASTAPI V2 (nové)
 - [x] No-code Agent Builder
 - [x] Social Sharing
 
-### Fáza 4 (UX/UI & Mobile) — ĎALŠIA
+### Fáza 4 (UX/UI & Mobile) — HOTOVÁ ✅
 - [x] Mobile responsiveness (safe-area, bottom nav, swarm KPI grid, narrow agents grid)
 - [x] PWA / mobile app (manifest PNG ikony, scope, apple-touch-icon, SW cache bump)
 - [x] Dark/light mode toggle
 - [x] Accessibility (základ: skip link, focus-visible, modal Tab trap, reduced motion, ARIA hlavičiek/navigácie)
+- [x] SPA URL história (`appRoutes.js`) + PWA shortcuts na reálne cesty
+
+### Fáza 4.5 (Interné — Owner only) — **ZA RADOU (Queued)**
+
+**Podmienka štartu:** spúšťať **až po uzavretí aktuálne otvorených položiek** vo **Fáze 5** nižšie (alebo po výslovnom GO vlastníka). Pred začiatkom 4.5 nedovážiť paralelnú vývojovú vetvu bez súhlasu.
+
+**Executive summary:** výhradne **role `owner`** (žiadny vplyv na bežných používateľov / monetizáciu). Cieľ: **Universal CMS & Design System Regenerator** — manuálna editácia UI tokenov/komponentov v aplikácii, univerzálny import prototypu (text/JSON/ZIP/CSS/Tailwind config…), AI analýza + remap na náš dizajn, **one-click apply** na web + PWA (verziovanie, revert, backup).
+
+**Rozsah dokumentu:** „High-End Manhattan Fintech Agency Style“ špecifikácia v **Verzii 1.6 | 8. mája 2026** — implementácia na Hermes stacku nižšie **nemá kopírovať Next.js/shadcn** povinne; ide o funkčný cieľ, nie o povinný framework switch.
+
+#### Mapovanie špecifikácia → Hermes (aktuálny stack)
+
+| Oblast v dokumente | Hermes (skutočná implementácia) |
+|-------------------|----------------------------------|
+| Route `/admin/owner-universal-cms` | **Vite React SPA:** samostatná „page“ / trasa (napr. `/owner/universal-cms` podľa `appRoutes.js`) + ochranou na backende |
+| NextAuth middleware `owner` | **Flask session + bcrypt tier** alebo **JWT** + stĺpec `users.is_owner` alebo **env allowlist** (`OWNER_EMAILS`) — striktne server-side |
+| Next.js 14 + Tailwind v4 + shadcn + Framer | **React (Vite)** + existujúci **`globals.css`** + CSS premenné / token JSON; Framer/shadcn **voliteľné** v neskorších iteráciách |
+| ISR revalidation | **Žiadny Next ISR:** uložiť schému do **Postgres**, invalidácia **Redis** kľúčov pre DS cache; frontend načítanie theme cez API; **bump verzie SW** (`CACHE_NAME`) + prípadný redeploy statík (Vercel) |
+| Claude 3.5 RAG | Existujúci **Anthropic** klient + úložisko promptov v repozitári (napr. `prompts/design-regenerator/`) + kontext z DB registry |
+
+#### Funkčné bloky (skrátene)
+
+| Tab / modul | Funkcia |
+|-------------|---------|
+| **Current Design System** | Živý inventár komponentov + aktuálny JSON/CSS token snapshot |
+| **Universal Import** | Drag & drop; auto-detekcia zdroja (markdown/JSON, Figma tokens, ZIP, tailwind config, raw CSS, plain prompt…) |
+| **Manual UI Editor** | Strom komponentov, live úpravy (farby, tiene, glow, layout), náhľad mobile/desktop (iframe alebo scoped preview) |
+| **Prototype History & Apply** | Verzie (timestamp + popis + diff), revert, backup pred apply |
+
+#### AI workflow (3 kroky)
+
+1. **Analyze** — AI report nad interným Design Manual (komponenty, CSS vars, konzistencia neon-dark).
+2. **Remap** — import → mapovanie na naše sloty/tokeny.
+3. **Generate** — výstup **Theme Schema JSON** + diff report.
+
+#### Navrhované backend endpointy (prefix podľa rozhodnutia `/api/owner/*` alebo `/api/admin/owner/*`)
+
+```
+POST  /api/owner/design/import          — parser + validácia + ZIP limit (~50 MB) + sanitizácia
+POST  /api/owner/design/analyze        — Claude analyze_current_design
+POST  /api/owner/design/generate       — Claude remap + výstup schema + diff
+POST  /api/owner/design/apply          — transakcia DB + Redis invalidate + verzia SW / broadcast
+GET   /api/owner/design/schema         — aktívna schéma + história (read)
+POST  /api/owner/design/revert/:id     — obnova verzie
+```
+
+#### Core artefakty (repo)
+
+- `frontend/src/design-system/schema.template.json` (alebo `shared/design-system/`) — verzia, `global.cssVars`, `components.*`, `mobilePWAOverrides`.
+- DB tabuľky (Alembic): napr. `design_system_versions` (jsonb schema, created_at, label, applied_by owner id).
+
+#### Acceptance criteria (owner)
+
+- [ ] Upload ZIP / paste prompt → preview → **Apply** → web + PWA reflektujú nový DS v rozumnom SLA (cieľ dokumentu: ~8 s po aplikácii tokenov + SW refresh).
+- [ ] Manuálna zmena napr. glow na AgentCard → viditeľný live náhľad.
+- [ ] Jednoklikový **Revert** na predchádzajúcu verziu + automatický backup pred apply.
+- [ ] Všetko dostupné **iba pre owner** (403 pre ostatných vrátane admin tier bez owner flag).
+
+#### Orientačná náročnosť
+
+**2–3 týždne** (8–12 pracovných dní) podľa pôvodného dokumentu; prvý milestone po GO: schema + import parser + owner gate + 1 AI endpoint.
 
 ### Fáza 5 (Pokročilé funkcie)
 - [ ] Agent marketplace (user-created agents, publikovanie)
