@@ -7462,19 +7462,6 @@ def push_queue_task():
         required_capabilities=required,
         task_id=task_id,
     )
-    eng = db.get_engine()
-    if eng is None:
-        return jsonify({"error": "database unavailable"}), 503
-    with eng.begin() as conn:
-        conn.execute(
-            text(
-                """
-                INSERT INTO task_queue (task_id, task_type, payload, status, priority, required_capabilities)
-                VALUES (:tid, :tt, CAST(:pl AS JSONB), 'pending', :pri, CAST(:req AS JSONB))
-                """
-            ),
-            {"tid": task_id, "tt": task_type, "pl": json.dumps(payload), "pri": priority, "req": json.dumps(required)},
-        )
     return jsonify({"task_id": task_id, "status": "queued"})
 
 

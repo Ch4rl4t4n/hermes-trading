@@ -109,7 +109,9 @@ def execute_task(task_id: str, agent_id: str, task_type: str, payload: dict[str,
         raise
     finally:
         swarm_registry.update_load(agent_id, -1)
-        swarm_registry.mark_status(agent_id, "idle")
+        current = swarm_registry.get_agent(agent_id) or {}
+        active_now = int(current.get("active_tasks") or 0)
+        swarm_registry.mark_status(agent_id, "idle" if active_now <= 0 else "running")
         swarm_registry.heartbeat(agent_id)
 
 

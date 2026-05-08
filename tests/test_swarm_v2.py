@@ -169,6 +169,18 @@ def test_queue_priority_ordering(fake_redis):
         assert first["task_type"] == "high"
 
 
+def test_queue_push_without_redis_enqueue(fake_redis):
+    from core.queue_manager import QUEUE_PRIORITY, QueueManager
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.queue_manager.get_engine", return_value=None):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        qm = QueueManager(redis_client=fake_redis, registry=reg)
+
+        qm.push_task("db_only", {}, priority=5, enqueue_redis=False)
+        assert int(fake_redis.zcard(QUEUE_PRIORITY)) == 0
+
+
 # ── TaskRouter ────────────────────────────────────────────────────────────
 def test_router_picks_capability_match(fake_redis):
     from core.queue_manager import QueueManager
@@ -227,6 +239,32 @@ def test_router_load_balancing(fake_redis):
                 required_capabilities=["trading"],
             )
         assert decision["would_assign_to"] == "free"
+
+
+def test_router_assigned_task_not_left_in_redis_queue(fake_redis):
+    from core.queue_manager import QUEUE_PRIORITY, QueueManager
+    from core.swarm_registry import SwarmRegistry
+    from core.task_router import TaskRouter
+
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.queue_manager.get_engine", return_value=None):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        qm = QueueManager(redis_client=fake_redis, registry=reg)
+
+        reg.register_agent("trader-a", "Trader A", "trading", ["trading"])
+        reg.heartbeat("trader-a")
+
+        with patch("core.task_router.queue_manager", qm), \
+             patch("core.task_router.swarm_registry", reg):
+            router = TaskRouter()
+            decision = router.route_task(
+                task_type="rebalance",
+                payload={"symbol": "BTC"},
+                required_capabilities=["trading"],
+            )
+            assert decision["assigned_agent"] == "trader-a"
+            assert decision["status"] == "assigned"
+            assert int(fake_redis.zcard(QUEUE_PRIORITY)) == 0
 
 
 # ── Bootstrap (smoke) ─────────────────────────────────────────────────────

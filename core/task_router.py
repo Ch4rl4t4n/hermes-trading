@@ -130,6 +130,7 @@ class TaskRouter:
             required_capabilities=required,
             task_id=task_id,
             swarm_name=agent.get("swarm") if agent else preferred_swarm,
+            enqueue_redis=not bool(agent),
         )
 
         decision = {
@@ -143,13 +144,6 @@ class TaskRouter:
             "score": self._compute_score(agent, required, preferred_swarm, task_type, int(priority or 5)) if agent else 0,
             "timestamp": _now_iso(),
         }
-
-        if agent:
-            try:
-                swarm_registry.mark_status(str(agent["agent_id"]), "running")
-                swarm_registry.update_load(str(agent["agent_id"]), +1)
-            except Exception:  # noqa: BLE001
-                log.debug("[Router] mark/load update failed", exc_info=True)
 
         # Redis audit log (rolling, fast)
         try:

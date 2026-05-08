@@ -105,6 +105,7 @@ class QueueManager:
         required_capabilities: list[str] | None = None,
         task_id: str | None = None,
         swarm_name: str | None = None,
+        enqueue_redis: bool = True,
     ) -> str:
         safe_payload: dict[str, Any]
         if payload is None:
@@ -162,10 +163,11 @@ class QueueManager:
                 log.warning("[Queue] DB persist failed for %s", tid, exc_info=True)
 
         # Redis (hot)
-        try:
-            self.r.zadd(QUEUE_PRIORITY, {json.dumps(task): priority})
-        except RedisError:
-            log.warning("[Queue] redis push failed for %s", tid, exc_info=True)
+        if enqueue_redis:
+            try:
+                self.r.zadd(QUEUE_PRIORITY, {json.dumps(task): priority})
+            except RedisError:
+                log.warning("[Queue] redis push failed for %s", tid, exc_info=True)
 
         return tid
 
