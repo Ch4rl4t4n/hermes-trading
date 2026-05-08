@@ -11,8 +11,8 @@ export default function Login({ onLogin }) {
     setLoading(true);
     setError("");
     const result = await loginWithEmail(email, password);
-    if (result.success) {
-      onLogin(result.user);
+    if (result.data) {
+      onLogin(result.data);
     } else {
       setError(result.error);
     }

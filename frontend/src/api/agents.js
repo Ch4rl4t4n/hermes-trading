@@ -56,10 +56,10 @@ export async function getUserAgents() {
   try {
     const res = await client.get("/api/agents");
     const data = Array.isArray(res.data) ? res.data : res.data?.agents || [];
-    if (Array.isArray(data)) return data.map(normalizeAgent);
-    return DEMO_AGENTS;
-  } catch {
-    return DEMO_AGENTS;
+    if (Array.isArray(data)) return { data: data.map(normalizeAgent), error: null };
+    return { data: DEMO_AGENTS, error: null };
+  } catch (error) {
+    return { data: DEMO_AGENTS, error };
   }
 }
 
@@ -67,9 +67,9 @@ export async function pauseAgent(agentIdOrSymbol) {
   const symbol = String(agentIdOrSymbol || "").replaceAll("/", "-");
   try {
     const { data } = await client.post(`/api/agent/${encodeURIComponent(symbol)}/toggle`);
-    return data;
-  } catch {
-    return { success: false, symbol: agentIdOrSymbol, paused: null };
+    return { data, error: null };
+  } catch (error) {
+    return { data: { success: false, symbol: agentIdOrSymbol, paused: null }, error };
   }
 }
 
@@ -77,8 +77,37 @@ export async function getAgentTrades(agentIdOrSymbol) {
   const symbol = String(agentIdOrSymbol || "").replaceAll("/", "-");
   try {
     const { data } = await client.get(`/api/trades/${encodeURIComponent(symbol)}`);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+    return { data: Array.isArray(data) ? data : [], error: null };
+  } catch (error) {
+    return { data: [], error };
+  }
+}
+
+export async function getAgentMemory(agentId) {
+  try {
+    const { data } = await client.get(`/api/agents/${encodeURIComponent(String(agentId))}/memory`);
+    return { data: Array.isArray(data) ? data : [], error: null };
+  } catch (error) {
+    return { data: [], error };
+  }
+}
+
+export async function setAgentMemory(agentId, key, value) {
+  const payload = { key: String(key || ""), value: String(value || "") };
+  try {
+    const { data } = await client.post(`/api/agents/${encodeURIComponent(String(agentId))}/memory`, payload);
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+export async function deleteAgentMemory(agentId, key) {
+  const cleanKey = encodeURIComponent(String(key || ""));
+  try {
+    const { data } = await client.delete(`/api/agents/${encodeURIComponent(String(agentId))}/memory/${cleanKey}`);
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
 }

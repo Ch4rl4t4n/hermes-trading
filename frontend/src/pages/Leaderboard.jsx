@@ -58,7 +58,9 @@ export default function Leaderboard({ onToast }) {
   useEffect(() => {
     if (tab === "following") return;
     let cancelled = false;
-    setLoading(true);
+    const loadingTimer = window.setTimeout(() => {
+      if (!cancelled) setLoading(true);
+    }, 0);
     client
       .get(`/api/leaderboard?period=${tab}`)
       .then(({ data }) => {
@@ -82,6 +84,7 @@ export default function Leaderboard({ onToast }) {
       });
     return () => {
       cancelled = true;
+      window.clearTimeout(loadingTimer);
     };
   }, [tab]);
 

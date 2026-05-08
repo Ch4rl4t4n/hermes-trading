@@ -9,6 +9,7 @@ import {
   saveStoredEvolution,
 } from "../../utils/agentXP";
 import AgentAvatar from "./AgentAvatar";
+import MemoryVault from "../MemoryVault";
 
 const SKIN_META = {
   basic: { label: "Basic Core", style: "basic" },
@@ -52,8 +53,11 @@ export default function AgentEvolution({ agent, open, onClose, onChange }) {
   useEffect(() => {
     if (!agent) return;
     const saved = getStoredEvolution(agent, levelMeta.level);
-    setSkin(unlockedSkins.includes(saved.skin) ? saved.skin : unlockedSkins[0]);
-    setPersonality(unlockedPersonalities.includes(saved.personality) ? saved.personality : unlockedPersonalities[0]);
+    const timer = window.setTimeout(() => {
+      setSkin(unlockedSkins.includes(saved.skin) ? saved.skin : unlockedSkins[0]);
+      setPersonality(unlockedPersonalities.includes(saved.personality) ? saved.personality : unlockedPersonalities[0]);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [agent, levelMeta.level, unlockedPersonalities, unlockedSkins]);
 
   if (!open || !agent) return null;
@@ -154,6 +158,8 @@ export default function AgentEvolution({ agent, open, onClose, onChange }) {
           <div><span>Total PnL</span><strong>{`${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}`}</strong></div>
           <div><span>Age</span><strong>{`${ageDays} days`}</strong></div>
         </div>
+
+        <MemoryVault agentId={agent.id} />
       </div>
     </div>
   );
