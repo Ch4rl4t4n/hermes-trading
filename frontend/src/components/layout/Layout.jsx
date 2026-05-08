@@ -26,7 +26,11 @@ export default function Layout({ page, setPage, user, onLogout, children }) {
         tabIndex={-1}
         className="main-content"
         aria-label="Hlavný obsah"
-        style={{ marginLeft: isDesktop ? 240 : 0, paddingBottom: isDesktop ? 0 : "calc(64px + env(safe-area-inset-bottom))" }}
+        style={{
+          marginLeft: isDesktop ? 240 : 0,
+          paddingBottom: isDesktop ? 0 : "calc(64px + env(safe-area-inset-bottom))",
+          paddingTop: isDesktop ? undefined : "env(safe-area-inset-top, 0px)",
+        }}
       >
         {isDesktop ? (
           <TopBar page={page} user={user} onNav={setPage} theme={theme} isLight={isLight} onToggleTheme={toggleTheme} />

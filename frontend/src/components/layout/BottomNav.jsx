@@ -87,7 +87,7 @@ export default function BottomNav({ page, onNav }) {
           : "dashboard";
   return (
     <nav className="bottom-nav" aria-label="Spodná navigácia" style={{ height: "calc(64px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", height: 64 }}>
+      <div className="bottom-nav-inner">
         {tabs.map((tab) => {
           const isActive = current === tab.icon;
           const color = isActive ? "oklch(0.72 0.18 295)" : "oklch(0.45 0.04 240)";
@@ -110,7 +110,7 @@ export default function BottomNav({ page, onNav }) {
               }}
             >
               <span style={{ display: "inline-flex", color }} aria-hidden="true">{icons[tab.icon]}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>{tab.label}</span>
+              <span className="bottom-nav-label">{tab.label}</span>
             </button>
           );
         })}

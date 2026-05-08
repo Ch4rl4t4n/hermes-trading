@@ -229,7 +229,7 @@ FASTAPI V2 (nové)
 - [x] Social Sharing
 
 ### Fáza 4 (UX/UI & Mobile) — ĎALŠIA
-- [ ] Mobile responsiveness
+- [x] Mobile responsiveness (safe-area, bottom nav, swarm KPI grid, narrow agents grid)
 - [ ] PWA / mobile app
 - [x] Dark/light mode toggle
 - [x] Accessibility (základ: skip link, focus-visible, modal Tab trap, reduced motion, ARIA hlavičiek/navigácie)
