@@ -26,17 +26,28 @@
 | Súbor | Riadky | Popis |
 |-------|--------|-------|
 | `/root/hermes/dashboard/app.py` | ~4735 | Hlavná Flask app, všetky API endpointy |
-| `/root/hermes/hermes_api_v2/main.py` | ~40 | FastAPI v2 app assembly + lifespan (DB/Redis) |
-| `/root/hermes/hermes_api_v2/dependencies.py` | ~90 | JWT auth dependency + DB user lookup |
-| `/root/hermes/hermes_api_v2/api/v2/agents.py` | ~220 | `/api/v2/agents*` endpointy |
-| `/root/hermes/hermes_api_v2/api/v2/leaderboard.py` | ~130 | `/api/v2/leaderboard` + Redis cache TTL 60s |
-| `/root/hermes/hermes_api_v2/api/v2/websocket.py` | ~190 | `WS /api/v2/ws/pnl` live streaming |
+| `/root/hermes/api/main.py` | ~40 | FastAPI v2 app assembly + lifespan (DB/Redis) |
+| `/root/hermes/api/dependencies.py` | ~140 | JWT auth dependency + DB/Redis lifecycle |
+| `/root/hermes/api/routers/agents.py` | ~220 | `/api/v2/agents*` endpointy |
+| `/root/hermes/api/routers/leaderboard.py` | ~130 | `/api/v2/leaderboard` + Redis cache TTL 60s |
+| `/root/hermes/api/routers/swarm.py` | ~320 | `/api/v2/swarm/*` status, queue, routing, dispatch |
 | `/root/hermes/dashboard/templates/index.html` | ~9225 | Celý frontend (HTML + CSS + JS v jednom) |
 | `/root/hermes/core/watcher_agent.py` | ~865 | Monitoring, alerts, weekly report, paper trades |
 | `/root/hermes/core/agent_marketplace.py` | — | Marketplace + record_paper_trade() |
 | `/root/hermes/core/telegram_bot.py` | — | Telegram bot logika |
 | `/root/hermes/core/trade_reasons.py` | — | generate_trade_reason() |
 | `/root/hermes/core/leaderboard.py` | — | compute_leaderboard_cache() |
+| `/root/hermes/core/queue_manager.py` | ~320 | Pg+Redis dual-write queue manager (durable + hot cache) |
+| `/root/hermes/core/swarm_definitions.py` | ~125 | Default swarm definitions + seed helper |
+| `/root/hermes/core/swarm_registry.py` | ~380 | Agent Registry (Postgres canonical + Redis hot cache) |
+| `/root/hermes/core/task_router.py` | ~230 | Orchestra task routing engine with scoring + DB audit |
+| `/root/hermes/core/orchestra_agent.py` | ~40 | Orchestra compatibility facade (`orchestra.start()`) |
+| `/root/hermes/core/swarm_bootstrap.py` | ~200 | Registry hydration + seed + auto-registration + scheduler |
+| `/root/hermes/core/swarm_actors.py` | ~170 | Dramatiq actors (`route_task`, `execute_task`, `orchestra_tick`) |
+| `/root/hermes/core/swarm_handlers.py` | ~240 | Domain handlers (market/report/alert/snapshot) |
+| `/root/hermes/core/intelligence_stalker.py` | ~NEW | Intelligence swarm worker (news/trends/summary reports) |
+| `/root/hermes/frontend/src/pages/AdminSwarm.jsx` | ~NEW | Admin War Room control center (swarm ops, queue, health, directory) |
+| `/root/hermes/frontend/src/components/SwarmBuilderModal.jsx` | ~NEW | Prompt-based AI swarm generator modal + prompt library |
 | `/root/hermes/core/agent_builder.py` | ~NEW | Agent Builder backend (ALLOWED_SYMBOLS, ALLOWED_STRATEGIES, AI summary) |
 | `/root/hermes/.env` | — | Všetky secrets |
 
@@ -56,6 +67,11 @@ agent_leaderboard_cache — agent_id, period, rank, pnl_pct, pnl_usd, win_rate, 
 alert_rules         — user_id, agent_id, alert_type, threshold, is_enabled, last_triggered_at
 notifications       — user_id, type, title, message, is_read
 referrals           — id, referrer_id, referred_id, created_at, bonus_granted
+community_agents    — id, user_id, name, symbol, category, strategy, risk_level, description, status, win_rate, total_return, subscribers, price_monthly, is_featured, reject_reason, created_at, approved_at
+backtest_results    — id, user_id, agent_id, symbol, strategy, timeframe, start_date, end_date, initial_capital, final_capital, total_return, max_drawdown, win_rate, total_trades, winning_trades, sharpe_ratio, equity_curve, trades_log, created_at
+agent_registry      — id, agent_id, name, swarm_name, agent_type, status, capabilities, priority, config, memory_enabled, human_approval_required, cost_limit_daily, tasks_completed, tasks_failed, last_heartbeat, created_by, created_at, updated_at
+task_queue          — id, task_id, task_type, payload, status, priority, assigned_to, required_capabilities, result, error_message, created_at, started_at, completed_at, retry_count, max_retries
+intelligence_reports — id, report_type, symbol, title, content, sentiment, sentiment_score, source, tags, agent_id, created_at
 ```
 
 ---
@@ -83,6 +99,16 @@ AGENTS & TRADES
   GET       /api/agents/pnl
   GET       /api/agents/badges
   GET       /api/trades/history
+  GET       /api/intelligence/feed
+  GET       /api/intelligence/sentiment
+
+BACKTEST
+  POST      /api/backtest/run
+  GET       /api/backtest/history
+
+EXPORT
+  GET       /api/export/trades.csv
+  GET       /api/export/report.pdf
 
 LEADERBOARD
   GET       /api/leaderboard?period=weekly|monthly|alltime
@@ -108,8 +134,28 @@ SHARING
   POST      /api/sharing/grant-referral-bonus
   GET       /api/sharing/performance-card/:agent_id?type=trading_agent|user_agent|leaderboard
 
+COMMUNITY MARKETPLACE (nové)
+  GET       /api/community/agents
+  POST      /api/community/agents
+  GET       /api/community/my-agents
+  POST      /api/community/my-agents
+  GET       /api/admin/community/agents/pending
+  POST      /api/admin/community/agents/:agent_id/review
+
 ADMIN
   POST      /api/admin/assign-demo-agents
+  GET       /api/admin/registry/agents
+  POST      /api/admin/registry/agents
+  POST      /api/admin/registry/agents/:agent_id/status
+  GET       /api/admin/queue/stats
+  POST      /api/admin/queue/push
+  GET       /api/admin/queue/tasks
+  POST      /api/admin/router/route
+  POST      /api/admin/router/simulate
+  GET       /api/admin/router/log
+  GET       /api/admin/system/health
+  POST      /api/admin/swarm-builder/generate
+  POST      /api/admin/swarm-builder/create
 
 FASTAPI V2 (nové)
   GET       /api/v2/agents
@@ -117,7 +163,15 @@ FASTAPI V2 (nové)
   GET       /api/v2/agents/:agent_id/trades
   POST      /api/v2/agents/:agent_id/pause
   GET       /api/v2/leaderboard?period=7d|30d|all
-  WS        /api/v2/ws/pnl
+  GET       /api/v2/swarm/status
+  GET       /api/v2/swarm/swarms
+  GET       /api/v2/swarm/agents
+  GET       /api/v2/swarm/agents/:agent_id
+  GET       /api/v2/swarm/queue
+  GET       /api/v2/swarm/routing-log
+  POST      /api/v2/swarm/route
+  POST      /api/v2/swarm/dispatch
+  POST      /api/v2/swarm/seed
 ```
 
 ---
@@ -151,6 +205,14 @@ FASTAPI V2 (nové)
 - [x] Stripe integrácia (checkout, portal, webhooky, tier enforcement)
 - [x] **No-code Agent Builder** (4-krokový wizard, AI summary, watcher integrácia)
 - [x] **Social Sharing** (Performance Card share, Referral Program +3 sloty/30 dní, Leaderboard Brag Share)
+- [x] **User-created Community Marketplace** (submit flow, admin approve/reject, community tab)
+- [x] **Redis Queue + Agent Registry + Capability System** (registry DB + Redis queue manager + admin swarms overview)
+- [x] **War Room UI (Admin Swarm Control Center)** (`/admin-swarm` page-state route, live queue, system health, agent directory/drawer)
+- [x] **Prompt-Based Swarm Builder** (Claude-generated swarm config, create swarm endpoint, modal with saved prompts)
+- [x] **War Room hardening audit (BOD 26-28)** (admin checks alignment, Redis-safe queue manager, modal/polling cleanup, rate-limited swarm generation)
+- [x] **Orchestra Swarm + Dynamic Task Router** (task_router engine, orchestra background worker, router API, War Room routing section)
+- [x] **Intelligence Stalker Swarm** (automated market intelligence reports + dashboard intelligence feed)
+- [x] **Swarm v2 Production Backbone** (Dramatiq workers, Pg+Redis registry, durable queue, routing decisions audit, `/api/v2/swarm/*`)
 
 ---
 
@@ -168,10 +230,10 @@ FASTAPI V2 (nové)
 
 ### Fáza 5 (Pokročilé funkcie)
 - [ ] Agent marketplace (user-created agents, publikovanie)
-- [ ] Backtesting engine
+- [x] Backtesting engine (real calculations + equity curve + history)
 - [ ] API prístup pre Elite tier
 - [ ] Custom watcher nastavenia
-- [ ] CSV/PDF export
+- [x] CSV/PDF export (trades CSV + P&L PDF + backtest CSV)
 
 ---
 
