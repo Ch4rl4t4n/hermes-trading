@@ -2937,6 +2937,78 @@ select.admin-tier-inline-select{
   font-size:22px;
   line-height:1.1;
 }
+.swarm-v2-policy{
+  padding:10px 12px;
+  border-radius:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.swarm-v2-policy-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:8px;
+}
+.swarm-v2-policy-grid > div{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:8px 10px;
+  border-radius:8px;
+  background:color-mix(in oklab, var(--bg-2) 70%, transparent);
+  border:1px solid color-mix(in oklab, var(--text) 8%, transparent);
+}
+.swarm-v2-policy-grid > div strong{
+  font-size:13px;
+  line-height:1.25;
+}
+.swarm-v2-policy-warning{
+  border:1px solid color-mix(in oklab, #f97316 35%, transparent);
+  background:color-mix(in oklab, #f97316 8%, var(--bg-2));
+  border-radius:8px;
+  padding:8px 10px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.swarm-v2-policy-warning ul{
+  margin:0;
+  padding-left:18px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:12px;
+  color:var(--text-2);
+}
+.swarm-v2-policy-ok{
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid color-mix(in oklab, #34d399 35%, transparent);
+  background:color-mix(in oklab, #34d399 8%, var(--bg-2));
+  font-size:12px;
+  color:var(--text-2);
+}
+.swarm-v2-policy-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.swarm-v2-action-btn{
+  appearance:none;
+  border:1px solid color-mix(in oklab, var(--text) 16%, transparent);
+  background:color-mix(in oklab, var(--bg-2) 70%, transparent);
+  color:var(--text);
+  border-radius:8px;
+  padding:6px 10px;
+  font-size:12px;
+  cursor:pointer;
+  transition:border-color .15s ease, background .15s ease, transform .15s ease;
+}
+.swarm-v2-action-btn:hover{
+  border-color:color-mix(in oklab, #60a5fa 60%, transparent);
+  background:color-mix(in oklab, #60a5fa 10%, var(--bg-2));
+  transform:translateY(-1px);
+}
 .swarm-v2-grid{
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(180px,1fr));
@@ -2995,6 +3067,7 @@ select.admin-tier-inline-select{
 
 @media (max-width: 720px){
   .swarm-v2-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .swarm-v2-policy-grid{ grid-template-columns:1fr; }
   .swarm-v2-routing-item,
   .swarm-v2-task-row{ grid-template-columns:1fr; }
 }

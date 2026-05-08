@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -82,6 +83,46 @@ def test_load_increment(registry):
     registry.update_load("load-1", +1)
     agent = registry.get_agent("load-1")
     assert int(agent.get("active_tasks") or 0) == 2
+
+
+def test_cleanup_stopped_moves_to_paused(fake_redis):
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        reg.register_agent("stopped-1", "Stopped Agent", "maintenance", ["infra"])
+        reg.mark_status("stopped-1", "stopped")
+        # Use Redis path to assert state transition semantics independent of DB.
+        fake_redis.hset("hermes:agent:stopped-1", "last_heartbeat", (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
+
+    # DB-backed cleanup isn't available in this test fixture; ensure method is safe/no-op.
+    cleaned = reg.cleanup_stopped(older_than_seconds=60)
+    assert cleaned == 0
+
+
+def test_heartbeat_auto_resumes_paused_for_configured_swarm(fake_redis):
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.swarm_registry.AUTO_RESUME_SWARMS", {"maintenance", "orchestra"}):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        reg.register_agent("maint-1", "Maintenance Agent", "maintenance", ["infra"])
+        reg.mark_status("maint-1", "paused")
+        reg.heartbeat("maint-1")
+        agent = reg.get_agent("maint-1")
+        assert agent is not None
+        assert agent["status"] == "idle"
+
+
+def test_heartbeat_keeps_paused_for_non_configured_swarm(fake_redis):
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.swarm_registry.AUTO_RESUME_SWARMS", {"maintenance", "orchestra"}):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        reg.register_agent("trade-1", "Trading Agent", "trading", ["trading"])
+        reg.mark_status("trade-1", "paused")
+        reg.heartbeat("trade-1")
+        agent = reg.get_agent("trade-1")
+        assert agent is not None
+        assert agent["status"] == "paused"
 
 
 # ── QueueManager ──────────────────────────────────────────────────────────

@@ -37,6 +37,12 @@ log = logging.getLogger(__name__)
 # ── Config ────────────────────────────────────────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 HEARTBEAT_TTL = int(os.getenv("HERMES_SWARM_HEARTBEAT_TTL", "60"))
+STOPPED_CLEANUP_SECONDS = int(os.getenv("HERMES_SWARM_STOPPED_TO_PAUSED_SECONDS", "1800"))
+AUTO_RESUME_SWARMS = {
+    item.strip().lower()
+    for item in os.getenv("HERMES_SWARM_AUTO_RESUME_SWARMS", "maintenance,orchestra").split(",")
+    if item.strip()
+}
 
 REGISTRY_PREFIX = "hermes:agent:"
 SWARM_PREFIX = "hermes:swarm:"
@@ -196,19 +202,47 @@ class SwarmRegistry:
     def heartbeat(self, agent_id: str) -> None:
         try:
             self.r.setex(f"{HEARTBEAT_PREFIX}{agent_id}", HEARTBEAT_TTL, "1")
-            self.r.hset(f"{REGISTRY_PREFIX}{agent_id}", "last_heartbeat", _iso_now())
+            redis_key = f"{REGISTRY_PREFIX}{agent_id}"
+            current_status = self.r.hget(redis_key, "status")
+            swarm_name = str(self.r.hget(redis_key, "swarm") or "").lower()
+            updates = {"last_heartbeat": _iso_now()}
+            # Auto-revive stale agents that send a fresh heartbeat.
+            should_revive = current_status == "stopped" or (
+                current_status == "paused" and swarm_name in AUTO_RESUME_SWARMS
+            )
+            if should_revive:
+                updates["status"] = "idle"
+            self.r.hset(redis_key, mapping=updates)
         except RedisError:
             log.debug("[Registry] heartbeat redis fail", exc_info=True)
 
         with _db_conn() as conn:
             if conn is not None:
+                row = conn.execute(
+                    text("SELECT status, swarm_name FROM agent_registry WHERE agent_id = :aid"),
+                    {"aid": agent_id},
+                ).mappings().first()
+                next_status = None
+                if row:
+                    db_status = str(row.get("status") or "").lower()
+                    db_swarm = str(row.get("swarm_name") or "").lower()
+                    if db_status == "stopped" or (
+                        db_status == "paused" and db_swarm in AUTO_RESUME_SWARMS
+                    ):
+                        next_status = "idle"
                 conn.execute(
                     text(
                         "UPDATE agent_registry "
-                        "SET last_heartbeat = NOW(), last_seen = NOW() "
+                        "SET last_heartbeat = NOW(), "
+                        "    last_seen = NOW(), "
+                        "    status = COALESCE(:next_status, status), "
+                        "    updated_at = CASE "
+                        "        WHEN :next_status IS NOT NULL THEN NOW() "
+                        "        ELSE updated_at "
+                        "    END "
                         "WHERE agent_id = :aid"
                     ),
-                    {"aid": agent_id},
+                    {"aid": agent_id, "next_status": next_status},
                 )
 
     def mark_status(self, agent_id: str, status: str) -> None:
@@ -390,6 +424,42 @@ class SwarmRegistry:
         if reaped:
             log.warning("[Registry] reaped %s dead agents: %s", len(reaped), reaped)
         return len(reaped)
+
+    def cleanup_stopped(self, older_than_seconds: int | None = None) -> int:
+        """
+        Convert long-stopped agents to paused (archived standby state).
+
+        This keeps live health dashboards clean while preserving non-runnable
+        states for offline or dormant agents.
+        """
+        age = int(older_than_seconds or STOPPED_CLEANUP_SECONDS)
+        if age <= 0:
+            return 0
+        cutoff = _utc_now() - timedelta(seconds=age)
+        eng = get_engine()
+        if eng is None:
+            return 0
+        with eng.begin() as conn:
+            res = conn.execute(
+                text(
+                    "UPDATE agent_registry "
+                    "SET status = 'paused', updated_at = NOW() "
+                    "WHERE status = 'stopped' "
+                    "  AND last_heartbeat IS NOT NULL "
+                    "  AND last_heartbeat < :cutoff "
+                    "RETURNING agent_id"
+                ),
+                {"cutoff": cutoff},
+            )
+            cleaned = [row[0] for row in res]
+        for aid in cleaned:
+            try:
+                self.r.hset(f"{REGISTRY_PREFIX}{aid}", "status", "paused")
+            except RedisError:
+                pass
+        if cleaned:
+            log.info("[Registry] cleaned %s stopped agents -> paused: %s", len(cleaned), cleaned)
+        return len(cleaned)
 
     # ── Helpers ───────────────────────────────────────────────────────────
     def _materialise(self, data: dict[str, Any]) -> dict[str, Any]:

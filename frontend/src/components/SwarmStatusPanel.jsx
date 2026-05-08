@@ -8,6 +8,11 @@ const SWARM_META = {
   marketing: { icon: "📣", color: "oklch(0.72 0.18 15)", label: "Marketing" },
   maintenance: { icon: "🔧", color: "oklch(0.65 0.12 220)", label: "Infrastructure" },
 };
+const RECOMMENDED_POLICY = {
+  heartbeat_ttl_seconds: 60,
+  stopped_to_paused_seconds: 1800,
+  auto_resume_swarms: ["maintenance", "orchestra"],
+};
 
 function pct(part, total) {
   if (!total) return 0;
@@ -30,6 +35,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
   const [routingLog, setRoutingLog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [copiedAction, setCopiedAction] = useState("");
   const errorReported = useRef(false);
 
   const fetchAll = useCallback(async () => {
@@ -70,6 +76,90 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
 
   const queueStats = queue?.stats || {};
   const totalQueueItems = Object.values(queueStats).reduce((sum, value) => sum + Number(value || 0), 0);
+  const policyDrift = useMemo(() => {
+    const policy = status?.policy;
+    if (!policy) return [];
+    const drift = [];
+    if (Number(policy.heartbeat_ttl_seconds || 0) !== RECOMMENDED_POLICY.heartbeat_ttl_seconds) {
+      drift.push(
+        `Heartbeat TTL is ${Number(policy.heartbeat_ttl_seconds || 0)}s (recommended ${RECOMMENDED_POLICY.heartbeat_ttl_seconds}s)`
+      );
+    }
+    if (
+      Number(policy.stopped_to_paused_seconds || 0) !==
+      RECOMMENDED_POLICY.stopped_to_paused_seconds
+    ) {
+      drift.push(
+        `Stopped cleanup is ${Number(policy.stopped_to_paused_seconds || 0)}s (recommended ${RECOMMENDED_POLICY.stopped_to_paused_seconds}s)`
+      );
+    }
+    const liveSwarms = Array.isArray(policy.auto_resume_swarms)
+      ? policy.auto_resume_swarms.map((s) => String(s).toLowerCase()).sort()
+      : [];
+    const expectedSwarms = [...RECOMMENDED_POLICY.auto_resume_swarms].sort();
+    if (liveSwarms.join(",") !== expectedSwarms.join(",")) {
+      drift.push(
+        `Auto-resume swarms are [${liveSwarms.join(", ") || "none"}] (recommended [${expectedSwarms.join(", ")}])`
+      );
+    }
+    return drift;
+  }, [status]);
+  const policyExportSnippets = useMemo(() => {
+    const livePolicy = status?.policy || {};
+    const recommendedSnippet = [
+      `export HERMES_SWARM_HEARTBEAT_TTL=${RECOMMENDED_POLICY.heartbeat_ttl_seconds}`,
+      `export HERMES_SWARM_STOPPED_TO_PAUSED_SECONDS=${RECOMMENDED_POLICY.stopped_to_paused_seconds}`,
+      `export HERMES_SWARM_AUTO_RESUME_SWARMS=${RECOMMENDED_POLICY.auto_resume_swarms.join(",")}`,
+    ].join("\n");
+    const liveAutoResume = Array.isArray(livePolicy.auto_resume_swarms)
+      ? livePolicy.auto_resume_swarms.join(",")
+      : "";
+    const liveSnippet = [
+      `export HERMES_SWARM_HEARTBEAT_TTL=${Number(livePolicy.heartbeat_ttl_seconds || 0)}`,
+      `export HERMES_SWARM_STOPPED_TO_PAUSED_SECONDS=${Number(livePolicy.stopped_to_paused_seconds || 0)}`,
+      `export HERMES_SWARM_AUTO_RESUME_SWARMS=${liveAutoResume}`,
+    ].join("\n");
+    const remediationSnippet = [
+      "cd /root/hermes",
+      "# Apply recommended Swarm v2 runtime policy",
+      ...recommendedSnippet.split("\n"),
+      "",
+      "# Verify policy over API",
+      "TOKEN=\"$(venv/bin/python scripts/mint_fastapi_token.py 2>/dev/null || true)\"",
+      "curl -s \"http://127.0.0.1:8001/api/v2/swarm/status\" -H \"Authorization: Bearer $TOKEN\"",
+      "",
+      "# Persist these env values in /root/hermes/.env and restart services via your deploy playbook.",
+    ].join("\n");
+    const envPatchSnippet = [
+      `HERMES_SWARM_HEARTBEAT_TTL=${RECOMMENDED_POLICY.heartbeat_ttl_seconds}`,
+      `HERMES_SWARM_STOPPED_TO_PAUSED_SECONDS=${RECOMMENDED_POLICY.stopped_to_paused_seconds}`,
+      `HERMES_SWARM_AUTO_RESUME_SWARMS=${RECOMMENDED_POLICY.auto_resume_swarms.join(",")}`,
+    ].join("\n");
+    return { recommendedSnippet, liveSnippet, remediationSnippet, envPatchSnippet };
+  }, [status]);
+
+  const copyText = useCallback(async (text, key) => {
+    try {
+      if (!text) return;
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.focus();
+        area.select();
+        document.execCommand("copy");
+        document.body.removeChild(area);
+      }
+      setCopiedAction(key);
+      window.setTimeout(() => setCopiedAction(""), 1400);
+    } catch {
+      onError?.("Kopírovanie do schránky zlyhalo.");
+    }
+  }, [onError]);
 
   return (
     <article className="glass swarm-v2-panel">
@@ -115,6 +205,78 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
           <span className="text-3 fs-12">recent routes</span>
         </div>
       </div>
+
+      {status?.policy ? (
+        <div className="swarm-v2-policy glass-2">
+          <div className="row between">
+            <strong>Runtime Policy</strong>
+            <span className="text-3 fs-12">live config</span>
+          </div>
+          <div className="swarm-v2-policy-grid">
+            <div>
+              <span className="text-3 fs-12">Heartbeat TTL</span>
+              <strong>{Number(status.policy.heartbeat_ttl_seconds || 0)}s</strong>
+            </div>
+            <div>
+              <span className="text-3 fs-12">Stopped Cleanup</span>
+              <strong>{Number(status.policy.stopped_to_paused_seconds || 0)}s</strong>
+            </div>
+            <div>
+              <span className="text-3 fs-12">Auto-resume swarms</span>
+              <strong>
+                {(status.policy.auto_resume_swarms || []).length
+                  ? status.policy.auto_resume_swarms.join(", ")
+                  : "none"}
+              </strong>
+            </div>
+          </div>
+          {policyDrift.length ? (
+            <div className="swarm-v2-policy-warning">
+              <div className="row between">
+                <strong>Policy Drift Detected</strong>
+                <span className="pill pill-red">{policyDrift.length}</span>
+              </div>
+              <ul>
+                {policyDrift.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="swarm-v2-policy-ok">Policy matches recommended baseline.</div>
+          )}
+          <div className="swarm-v2-policy-actions">
+            <button
+              type="button"
+              className="swarm-v2-action-btn"
+              onClick={() => copyText(policyExportSnippets.recommendedSnippet, "recommended")}
+            >
+              {copiedAction === "recommended" ? "Copied" : "Copy recommended exports"}
+            </button>
+            <button
+              type="button"
+              className="swarm-v2-action-btn"
+              onClick={() => copyText(policyExportSnippets.liveSnippet, "live")}
+            >
+              {copiedAction === "live" ? "Copied" : "Copy live exports"}
+            </button>
+            <button
+              type="button"
+              className="swarm-v2-action-btn"
+              onClick={() => copyText(policyExportSnippets.remediationSnippet, "remediation")}
+            >
+              {copiedAction === "remediation" ? "Copied" : "Copy remediation commands"}
+            </button>
+            <button
+              type="button"
+              className="swarm-v2-action-btn"
+              onClick={() => copyText(policyExportSnippets.envPatchSnippet, "envpatch")}
+            >
+              {copiedAction === "envpatch" ? "Copied" : "Copy .env patch block"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="swarm-v2-grid">
         {swarms.map((swarm) => {

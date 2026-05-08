@@ -150,6 +150,7 @@ def orchestra_tick() -> None:
     """Runs every 30s (scheduled externally by orchestra_agent.py)."""
     swarm_registry.heartbeat("orchestra-001")
     reaped = swarm_registry.reap_dead()
+    cleaned = swarm_registry.cleanup_stopped()
     eng = get_engine()
     pending = 0
     if eng is not None:
@@ -157,7 +158,7 @@ def orchestra_tick() -> None:
             pending = int(conn.execute(
                 text("SELECT COUNT(*)::int FROM task_queue WHERE status = 'pending'")
             ).scalar() or 0)
-    log.info("[orchestra_tick] pending=%s reaped=%s at=%s", pending, reaped, _now_iso())
+    log.info("[orchestra_tick] pending=%s reaped=%s cleaned=%s at=%s", pending, reaped, cleaned, _now_iso())
     return None
 
 

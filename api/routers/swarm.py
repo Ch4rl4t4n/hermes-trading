@@ -110,7 +110,9 @@ async def swarm_status(
             "  COUNT(*) FILTER (WHERE last_heartbeat > NOW() - INTERVAL '60 seconds') AS alive, "
             "  COUNT(*) FILTER (WHERE status = 'running') AS running, "
             "  COUNT(*) FILTER (WHERE status = 'idle') AS idle, "
-            "  COUNT(*) FILTER (WHERE status IN ('error','stopped')) AS unhealthy "
+            "  COUNT(*) FILTER (WHERE status = 'paused') AS paused, "
+            "  COUNT(*) FILTER (WHERE status = 'error') AS unhealthy, "
+            "  COUNT(*) FILTER (WHERE status = 'stopped') AS stopped "
             "FROM agent_registry"
         )
     )).mappings().first() or {}
@@ -139,18 +141,39 @@ async def swarm_status(
     )).mappings().all()
 
     redis_ok = False
+    heartbeat_ttl = 60
+    stopped_cleanup_seconds = 1800
+    auto_resume_swarms: list[str] = []
     try:
         try:
-            from core.swarm_registry import swarm_registry
+            from core.swarm_registry import (
+                AUTO_RESUME_SWARMS,
+                HEARTBEAT_TTL,
+                STOPPED_CLEANUP_SECONDS,
+                swarm_registry,
+            )
         except ModuleNotFoundError:
-            from hermes.core.swarm_registry import swarm_registry
+            from hermes.core.swarm_registry import (
+                AUTO_RESUME_SWARMS,
+                HEARTBEAT_TTL,
+                STOPPED_CLEANUP_SECONDS,
+                swarm_registry,
+            )
         redis_ok = swarm_registry.health_check().get("redis", False)
+        heartbeat_ttl = int(HEARTBEAT_TTL)
+        stopped_cleanup_seconds = int(STOPPED_CLEANUP_SECONDS)
+        auto_resume_swarms = sorted(str(s).lower() for s in AUTO_RESUME_SWARMS)
     except Exception:  # noqa: BLE001
         redis_ok = False
 
     return {
         "version": "2.0.0",
         "redis_ok": redis_ok,
+        "policy": {
+            "heartbeat_ttl_seconds": heartbeat_ttl,
+            "stopped_to_paused_seconds": stopped_cleanup_seconds,
+            "auto_resume_swarms": auto_resume_swarms,
+        },
         "agents": {k: int(v or 0) for k, v in agents_row.items()},
         "queue": {k: int(v or 0) for k, v in queue_row.items()},
         "swarms": [
