@@ -99,8 +99,19 @@ const adminItem = {
   ),
 };
 
+const adminSwarmItem = {
+  key: "admin-swarm",
+  label: "Centrum swarmov",
+  icon: (
+    <svg {...iconBase}>
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+      <circle cx="12" cy="12" r="3.5" />
+    </svg>
+  ),
+};
+
 export default function Sidebar({ page, onNav, user, onLogout }) {
-  const items = user?.isAdmin ? [...navItems, adminItem] : navItems;
+  const items = user?.isAdmin ? [...navItems, adminItem, adminSwarmItem] : navItems;
   return (
     <aside className="sidebar" style={{ background: "oklch(0.12 0.02 260)" }}>
       <div className="sidebar-logo" style={{ letterSpacing: "0.06em", fontWeight: 700 }}>

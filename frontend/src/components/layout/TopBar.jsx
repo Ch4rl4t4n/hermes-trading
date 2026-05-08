@@ -9,21 +9,30 @@ const titles = {
   settings: "Nastavenia",
   developer: "Developer API",
   admin: "Administrácia",
-  "admin-swarm": "Swarm War Room",
+  "admin-swarm": "Centrum swarmov",
 };
 
-export default function TopBar({ page, user, onNav }) {
+export default function TopBar({ page, user, onNav, isLight, onToggleTheme }) {
   const isAdmin = Boolean(user?.isAdmin) || String(user?.tier || "").toLowerCase() === "admin";
   return (
-    <header className="topbar">
+    <header className="topbar" aria-label="Horná lišta">
       <strong>{titles[page] || "Hermes"}</strong>
       <div className="row gap-2">
         <input className="topbar-search" placeholder="Hľadať agentov, symboly..." aria-label="Vyhľadávanie agentov a symbolov" />
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          onClick={onToggleTheme}
+          aria-label={isLight ? "Prepnúť na tmavý režim" : "Prepnúť na svetlý režim"}
+          title={isLight ? "Tmavý režim" : "Svetlý režim"}
+        >
+          {isLight ? "🌙" : "☀️"}
+        </button>
         <SwarmHealthBadge
           isAdmin={isAdmin}
           onClick={() => onNav?.("admin-swarm")}
         />
-        <button className="topbar-bell" aria-label="Notifikácie">
+        <button type="button" className="topbar-bell" aria-label="Notifikácie">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
             <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
             <path d="M10.4 20a2.1 2.1 0 0 0 3.2 0" />

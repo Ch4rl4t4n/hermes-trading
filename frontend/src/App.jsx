@@ -91,7 +91,7 @@ function App() {
       <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
         <div className="glass row gap-2" style={{ padding: "10px 14px" }}>
           <span className="spinner active" />
-          <span>Loading session...</span>
+          <span>Načítavam reláciu…</span>
         </div>
       </main>
     );
@@ -110,7 +110,7 @@ function App() {
           setUser(null);
         }}
       >
-        <Suspense fallback={<div className="glass" style={{ padding: 12, margin: 16 }}>Loading page...</div>}>{content}</Suspense>
+        <Suspense fallback={<div className="glass" style={{ padding: 12, margin: 16 }}>Načítavam stránku…</div>}>{content}</Suspense>
       </Layout>
       <OfflineBanner />
       <CoachMessage totalPnl={totalPnl} />

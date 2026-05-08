@@ -231,8 +231,8 @@ FASTAPI V2 (nové)
 ### Fáza 4 (UX/UI & Mobile) — ĎALŠIA
 - [ ] Mobile responsiveness
 - [ ] PWA / mobile app
-- [ ] Dark/light mode toggle
-- [ ] Accessibility
+- [x] Dark/light mode toggle
+- [x] Accessibility (základ: skip link, focus-visible, modal Tab trap, reduced motion, ARIA hlavičiek/navigácie)
 
 ### Fáza 5 (Pokročilé funkcie)
 - [ ] Agent marketplace (user-created agents, publikovanie)

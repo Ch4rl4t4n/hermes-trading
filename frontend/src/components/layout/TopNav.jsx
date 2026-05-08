@@ -1,6 +1,7 @@
-export default function TopNav({ user, onMore }) {
+export default function TopNav({ user, onMore, isLight, onToggleTheme }) {
   return (
     <header
+      aria-label="Horná lišta"
       style={{
         height: 56,
         position: "sticky",
@@ -22,7 +23,18 @@ export default function TopNav({ user, onMore }) {
 
         <div className="row gap-2">
           <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={onToggleTheme}
+            aria-label={isLight ? "Prepnúť na tmavý režim" : "Prepnúť na svetlý režim"}
+            title={isLight ? "Tmavý režim" : "Svetlý režim"}
+          >
+            {isLight ? "🌙" : "☀️"}
+          </button>
+          <button
+            type="button"
             onClick={onMore}
+            aria-label="Notifikácie a Backtest"
             style={{
               background: "transparent",
               border: "none",
@@ -56,6 +68,8 @@ export default function TopNav({ user, onMore }) {
             </span>
           </button>
           <div
+            role="img"
+            aria-label={`Profil používateľa ${user?.name || "Agent"}`}
             style={{
               width: 34,
               height: 34,
@@ -66,7 +80,7 @@ export default function TopNav({ user, onMore }) {
               fontWeight: 700,
             }}
           >
-            {(user?.name || "A")[0]}
+            <span aria-hidden="true">{(user?.name || "A")[0]}</span>
           </div>
         </div>
       </div>

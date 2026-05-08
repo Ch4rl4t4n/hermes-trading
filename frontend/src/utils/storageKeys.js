@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   COACH_LAST_SHOWN: "hermes_coach_last_shown",
   COACH_PEAK_PNL: "hermes_coach_peak_pnl",
   INSTALL_DISMISSED: "hermes_install_dismissed",
+  THEME: "hermes_theme",
   AUTH_TOKEN: "hermes_token",
   AUTH_CSRF_TOKEN: "hermes_csrf_token",
 };
