@@ -1,4 +1,6 @@
-export default function SparkLine({ points = [], color }) {
+import { memo } from "react";
+
+function SparkLine({ points = [], color }) {
   if (!points.length) return null;
 
   const width = 120;
@@ -33,4 +35,6 @@ export default function SparkLine({ points = [], color }) {
     </svg>
   );
 }
+
+export default memo(SparkLine);
 

@@ -47,6 +47,12 @@
 | `/root/hermes/core/swarm_handlers.py` | ~240 | Domain handlers (market/report/alert/snapshot) |
 | `/root/hermes/core/intelligence_stalker.py` | ~NEW | Intelligence swarm worker (news/trends/summary reports) |
 | `/root/hermes/frontend/src/pages/AdminSwarm.jsx` | ~NEW | Admin War Room control center (swarm ops, queue, health, directory) |
+| `/root/hermes/frontend/src/components/adminswarm/*.jsx` | ~NEW | War Room modular panels (routing, sidebar, swarm grid, directory, drawer) |
+| `/root/hermes/frontend/src/hooks/useAdminSwarmRoutingInsights.js` | ~NEW | Routing insight computations (capability signals, confidence, checklist) |
+| `/root/hermes/scripts/pre_release_checks.sh` | ~NEW | One-shot pre-release checks (node check + frontend build + swarm smoke) |
+| `/root/hermes/scripts/pre_release_checks_strict.sh` | ~NEW | Strict release gate wrapper (`STRICT_NODE=1`, `STRICT_CAPABILITIES=1`) |
+| `/root/hermes/scripts/check_frontend_node_version.sh` | ~NEW | Frontend Node.js runtime validator (`>=20.19.0`) |
+| `/root/hermes/scripts/smoke_swarm_admin_flow.sh` | ~NEW | Admin swarm smoke (`status`, `route`, `dispatch`, optional `capabilities`) |
 | `/root/hermes/frontend/src/components/SwarmBuilderModal.jsx` | ~NEW | Prompt-based AI swarm generator modal + prompt library |
 | `/root/hermes/core/agent_builder.py` | ~NEW | Agent Builder backend (ALLOWED_SYMBOLS, ALLOWED_STRATEGIES, AI summary) |
 | `/root/hermes/.env` | — | Všetky secrets |

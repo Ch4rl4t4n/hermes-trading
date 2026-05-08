@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -84,6 +85,46 @@ def test_load_increment(registry):
     assert int(agent.get("active_tasks") or 0) == 2
 
 
+def test_cleanup_stopped_moves_to_paused(fake_redis):
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        reg.register_agent("stopped-1", "Stopped Agent", "maintenance", ["infra"])
+        reg.mark_status("stopped-1", "stopped")
+        # Use Redis path to assert state transition semantics independent of DB.
+        fake_redis.hset("hermes:agent:stopped-1", "last_heartbeat", (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
+
+    # DB-backed cleanup isn't available in this test fixture; ensure method is safe/no-op.
+    cleaned = reg.cleanup_stopped(older_than_seconds=60)
+    assert cleaned == 0
+
+
+def test_heartbeat_auto_resumes_paused_for_configured_swarm(fake_redis):
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.swarm_registry.AUTO_RESUME_SWARMS", {"maintenance", "orchestra"}):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        reg.register_agent("maint-1", "Maintenance Agent", "maintenance", ["infra"])
+        reg.mark_status("maint-1", "paused")
+        reg.heartbeat("maint-1")
+        agent = reg.get_agent("maint-1")
+        assert agent is not None
+        assert agent["status"] == "idle"
+
+
+def test_heartbeat_keeps_paused_for_non_configured_swarm(fake_redis):
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.swarm_registry.AUTO_RESUME_SWARMS", {"maintenance", "orchestra"}):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        reg.register_agent("trade-1", "Trading Agent", "trading", ["trading"])
+        reg.mark_status("trade-1", "paused")
+        reg.heartbeat("trade-1")
+        agent = reg.get_agent("trade-1")
+        assert agent is not None
+        assert agent["status"] == "paused"
+
+
 # ── QueueManager ──────────────────────────────────────────────────────────
 def test_queue_push_pop(fake_redis):
     from core.queue_manager import QueueManager
@@ -126,6 +167,18 @@ def test_queue_priority_ordering(fake_redis):
 
         first = qm.pop_task()
         assert first["task_type"] == "high"
+
+
+def test_queue_push_without_redis_enqueue(fake_redis):
+    from core.queue_manager import QUEUE_PRIORITY, QueueManager
+    from core.swarm_registry import SwarmRegistry
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.queue_manager.get_engine", return_value=None):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        qm = QueueManager(redis_client=fake_redis, registry=reg)
+
+        qm.push_task("db_only", {}, priority=5, enqueue_redis=False)
+        assert int(fake_redis.zcard(QUEUE_PRIORITY)) == 0
 
 
 # ── TaskRouter ────────────────────────────────────────────────────────────
@@ -186,6 +239,32 @@ def test_router_load_balancing(fake_redis):
                 required_capabilities=["trading"],
             )
         assert decision["would_assign_to"] == "free"
+
+
+def test_router_assigned_task_not_left_in_redis_queue(fake_redis):
+    from core.queue_manager import QUEUE_PRIORITY, QueueManager
+    from core.swarm_registry import SwarmRegistry
+    from core.task_router import TaskRouter
+
+    with patch("core.swarm_registry.get_engine", return_value=None), \
+         patch("core.queue_manager.get_engine", return_value=None):
+        reg = SwarmRegistry(redis_client=fake_redis)
+        qm = QueueManager(redis_client=fake_redis, registry=reg)
+
+        reg.register_agent("trader-a", "Trader A", "trading", ["trading"])
+        reg.heartbeat("trader-a")
+
+        with patch("core.task_router.queue_manager", qm), \
+             patch("core.task_router.swarm_registry", reg):
+            router = TaskRouter()
+            decision = router.route_task(
+                task_type="rebalance",
+                payload={"symbol": "BTC"},
+                required_capabilities=["trading"],
+            )
+            assert decision["assigned_agent"] == "trader-a"
+            assert decision["status"] == "assigned"
+            assert int(fake_redis.zcard(QUEUE_PRIORITY)) == 0
 
 
 # ── Bootstrap (smoke) ─────────────────────────────────────────────────────

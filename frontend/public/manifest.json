@@ -1,0 +1,28 @@
+{
+  "name": "Hermes Trading",
+  "short_name": "Hermes",
+  "description": "Platforma AI trading agentov",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "sk",
+  "categories": ["finance", "productivity"],
+  "background_color": "#060818",
+  "theme_color": "#060818",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icons.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Marketplace",
+      "url": "/marketplace",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

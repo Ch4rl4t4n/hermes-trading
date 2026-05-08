@@ -1,0 +1,23 @@
+# Backend/runtime directories not needed for static frontend deploy.
+/venv/
+/logs/
+/notifications/
+/alembic/
+/deploy/
+/dashboard/
+/core/
+/api/
+/hermes_api_v2/
+/tests/
+/scripts/
+
+# Local/system artifacts.
+/\.env
+/\.env.*
+*.sqlite
+*.db
+*.log
+/.watcher_*
+
+# Large nested app managed separately.
+/trading-web/

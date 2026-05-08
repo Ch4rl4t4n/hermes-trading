@@ -9,12 +9,13 @@ GET  /api/v2/swarm/agents          — full registry (filter by ?swarm=…&alive
 GET  /api/v2/swarm/agents/{id}     — single agent snapshot
 GET  /api/v2/swarm/queue           — queue stats + recent tasks
 GET  /api/v2/swarm/routing-log     — last N routing decisions
+GET  /api/v2/swarm/capabilities    — capability inventory + coverage
 POST /api/v2/swarm/route           — simulate routing for a hypothetical task
 POST /api/v2/swarm/dispatch        — actually push a task into the queue (admin)
 POST /api/v2/swarm/seed            — re-run swarm bootstrap (admin)
 
 All endpoints require a valid bearer (FastAPI JWT). `dispatch` and `seed`
-additionally require `tier == 'admin'`.
+additionally require admin privileges (`is_admin` or `tier == 'admin'`).
 """
 from __future__ import annotations
 
@@ -34,7 +35,7 @@ router = APIRouter(prefix="/swarm", tags=["swarm"])
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 def _require_admin(current_user: dict) -> None:
-    if (current_user or {}).get("tier") != "admin":
+    if not ((current_user or {}).get("is_admin") or (current_user or {}).get("tier") == "admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin tier required")
 
 
@@ -45,6 +46,15 @@ def _serialize_dt(value: Any) -> str | None:
 
 
 async def _list_agents_async(db: AsyncSession, swarm: str | None = None) -> list[dict[str, Any]]:
+    heartbeat_ttl = 60
+    try:
+        try:
+            from core.swarm_registry import HEARTBEAT_TTL
+        except ModuleNotFoundError:
+            from hermes.core.swarm_registry import HEARTBEAT_TTL
+        heartbeat_ttl = int(HEARTBEAT_TTL)
+    except Exception:  # noqa: BLE001
+        heartbeat_ttl = 60
     sql = (
         "SELECT agent_id, name, swarm_name, agent_type, status, capabilities, "
         "priority, config, metadata, last_heartbeat, active_tasks, "
@@ -69,7 +79,7 @@ async def _list_agents_async(db: AsyncSession, swarm: str | None = None) -> list
             if isinstance(ts, datetime):
                 if ts.tzinfo is None:
                     ts = ts.replace(tzinfo=timezone.utc)
-                d["alive"] = ts > now - timedelta(seconds=60)
+                d["alive"] = ts > now - timedelta(seconds=heartbeat_ttl)
         for f in ("capabilities", "config", "metadata"):
             if isinstance(d.get(f), str):
                 try:
@@ -103,16 +113,44 @@ async def swarm_status(
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Overall swarm health snapshot — safe for frontend polling."""
+    heartbeat_ttl = 60
+    stopped_cleanup_seconds = 1800
+    auto_resume_swarms: list[str] = []
+    try:
+        try:
+            from core.swarm_registry import (
+                AUTO_RESUME_SWARMS,
+                HEARTBEAT_TTL,
+                STOPPED_CLEANUP_SECONDS,
+                swarm_registry,
+            )
+        except ModuleNotFoundError:
+            from hermes.core.swarm_registry import (
+                AUTO_RESUME_SWARMS,
+                HEARTBEAT_TTL,
+                STOPPED_CLEANUP_SECONDS,
+                swarm_registry,
+            )
+        redis_ok = swarm_registry.health_check().get("redis", False)
+        heartbeat_ttl = int(HEARTBEAT_TTL)
+        stopped_cleanup_seconds = int(STOPPED_CLEANUP_SECONDS)
+        auto_resume_swarms = sorted(str(s).lower() for s in AUTO_RESUME_SWARMS)
+    except Exception:  # noqa: BLE001
+        redis_ok = False
+
     agents_row = (await db.execute(
         text(
             "SELECT "
             "  COUNT(*) FILTER (WHERE TRUE) AS total, "
-            "  COUNT(*) FILTER (WHERE last_heartbeat > NOW() - INTERVAL '60 seconds') AS alive, "
+            "  COUNT(*) FILTER (WHERE last_heartbeat > NOW() - make_interval(secs => :heartbeat_ttl)) AS alive, "
             "  COUNT(*) FILTER (WHERE status = 'running') AS running, "
             "  COUNT(*) FILTER (WHERE status = 'idle') AS idle, "
-            "  COUNT(*) FILTER (WHERE status IN ('error','stopped')) AS unhealthy "
+            "  COUNT(*) FILTER (WHERE status = 'paused') AS paused, "
+            "  COUNT(*) FILTER (WHERE status = 'error') AS unhealthy, "
+            "  COUNT(*) FILTER (WHERE status = 'stopped') AS stopped "
             "FROM agent_registry"
-        )
+        ),
+        {"heartbeat_ttl": heartbeat_ttl},
     )).mappings().first() or {}
 
     queue_row = (await db.execute(
@@ -131,26 +169,22 @@ async def swarm_status(
     swarms_rows = (await db.execute(
         text(
             "SELECT swarm_name, COUNT(*) AS members, "
-            "       COUNT(*) FILTER (WHERE last_heartbeat > NOW() - INTERVAL '60 seconds') AS alive_members "
+            "       COUNT(*) FILTER (WHERE last_heartbeat > NOW() - make_interval(secs => :heartbeat_ttl)) AS alive_members "
             "FROM agent_registry "
             "GROUP BY swarm_name "
             "ORDER BY swarm_name"
-        )
+        ),
+        {"heartbeat_ttl": heartbeat_ttl},
     )).mappings().all()
-
-    redis_ok = False
-    try:
-        try:
-            from core.swarm_registry import swarm_registry
-        except ModuleNotFoundError:
-            from hermes.core.swarm_registry import swarm_registry
-        redis_ok = swarm_registry.health_check().get("redis", False)
-    except Exception:  # noqa: BLE001
-        redis_ok = False
 
     return {
         "version": "2.0.0",
         "redis_ok": redis_ok,
+        "policy": {
+            "heartbeat_ttl_seconds": heartbeat_ttl,
+            "stopped_to_paused_seconds": stopped_cleanup_seconds,
+            "auto_resume_swarms": auto_resume_swarms,
+        },
         "agents": {k: int(v or 0) for k, v in agents_row.items()},
         "queue": {k: int(v or 0) for k, v in queue_row.items()},
         "swarms": [
@@ -169,17 +203,27 @@ async def list_swarms(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
+    heartbeat_ttl = 60
+    try:
+        try:
+            from core.swarm_registry import HEARTBEAT_TTL
+        except ModuleNotFoundError:
+            from hermes.core.swarm_registry import HEARTBEAT_TTL
+        heartbeat_ttl = int(HEARTBEAT_TTL)
+    except Exception:  # noqa: BLE001
+        heartbeat_ttl = 60
     rows = (await db.execute(
         text(
             "SELECT swarm_name, "
             "  COUNT(*) AS total, "
-            "  COUNT(*) FILTER (WHERE last_heartbeat > NOW() - INTERVAL '60 seconds') AS alive, "
+            "  COUNT(*) FILTER (WHERE last_heartbeat > NOW() - make_interval(secs => :heartbeat_ttl)) AS alive, "
             "  COUNT(*) FILTER (WHERE status = 'running') AS running, "
             "  array_agg(agent_id ORDER BY name) AS members "
             "FROM agent_registry "
             "GROUP BY swarm_name "
             "ORDER BY swarm_name"
-        )
+        ),
+        {"heartbeat_ttl": heartbeat_ttl},
     )).mappings().all()
     return {
         "swarms": [
@@ -285,6 +329,44 @@ async def routing_log(
         d = dict(row)
         d["decided_at"] = _serialize_dt(d.get("decided_at"))
         items.append(d)
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/capabilities")
+async def capability_inventory(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    rows = (await db.execute(
+        text(
+            "SELECT "
+            "  cap.capability AS capability, "
+            "  COUNT(*)::int AS total_agents, "
+            "  COUNT(*) FILTER (WHERE ar.status = 'running')::int AS running_agents, "
+            "  COUNT(*) FILTER (WHERE ar.status = 'idle')::int AS idle_agents, "
+            "  COALESCE(SUM(ar.active_tasks), 0)::int AS active_tasks "
+            "FROM agent_registry ar "
+            "CROSS JOIN LATERAL jsonb_array_elements_text( "
+            "  CASE "
+            "    WHEN ar.capabilities IS NULL THEN '[]'::jsonb "
+            "    WHEN jsonb_typeof(ar.capabilities::jsonb) = 'array' THEN ar.capabilities::jsonb "
+            "    ELSE '[]'::jsonb "
+            "  END "
+            ") AS cap(capability) "
+            "GROUP BY cap.capability "
+            "ORDER BY total_agents DESC, cap.capability ASC"
+        )
+    )).mappings().all()
+    items = [
+        {
+            "capability": str(row["capability"]),
+            "total_agents": int(row["total_agents"] or 0),
+            "running_agents": int(row["running_agents"] or 0),
+            "idle_agents": int(row["idle_agents"] or 0),
+            "active_tasks": int(row["active_tasks"] or 0),
+        }
+        for row in rows
+    ]
     return {"items": items, "total": len(items)}
 
 

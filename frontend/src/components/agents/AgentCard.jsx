@@ -1,9 +1,11 @@
+import { memo } from "react";
+
 import SparkLine from "../ui/SparkLine";
 import PerformanceBadge from "../ui/PerformanceBadge";
 import AgentAvatar from "./AgentAvatar";
 import { calculateXP, getLevel } from "../../utils/agentXP";
 
-export default function AgentCard({
+function AgentCard({
   agent,
   onToggle,
   onDetails,
@@ -109,4 +111,6 @@ export default function AgentCard({
     </div>
   );
 }
+
+export default memo(AgentCard);
 

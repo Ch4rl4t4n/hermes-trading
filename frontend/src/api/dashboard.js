@@ -42,12 +42,12 @@ export async function getDashboardData() {
       ? tradesRes.data.trades.map(mapTrade)
       : demoRecentTrades;
     const alerts = Array.isArray(alertsRes.data?.rules) ? alertsRes.data.rules.map(mapAlert) : activeAlerts;
-    return {
+    return { data: {
       agents: agentsRes.data,
       recentTrades,
       alerts,
-    };
-  } catch {
-    return null;
+    }, error: null };
+  } catch (error) {
+    return { data: null, error };
   }
 }

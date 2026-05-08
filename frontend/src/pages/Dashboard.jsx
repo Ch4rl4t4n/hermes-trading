@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import AgentCard from "../components/agents/AgentCard";
 import AgentEvolution from "../components/agents/AgentEvolution";
+import TradingQuote from "../components/TradingQuote";
+import ExportButton from "../components/ExportButton";
+import IntelligenceFeed from "../components/IntelligenceFeed";
 import AlertBanner from "../components/ui/AlertBanner";
 import Confetti from "../components/ui/Confetti";
 import OnboardingChecklist from "../components/ui/OnboardingChecklist";
@@ -35,7 +38,9 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
   };
 
   useEffect(() => {
-    if (!isMobile) setTradesOpen(true);
+    if (isMobile) return;
+    const timer = window.setTimeout(() => setTradesOpen(true), 0);
+    return () => window.clearTimeout(timer);
   }, [isMobile]);
   const totalPnl = agents.reduce((sum, a) => sum + a.pnlUsd, 0);
   const equity = 10000 + totalPnl;
@@ -48,7 +53,8 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
     if (typeof window === "undefined") return;
     if (totalPnl > 0 && !window.sessionStorage.getItem("hermes-confetti-dashboard-positive")) {
       window.sessionStorage.setItem("hermes-confetti-dashboard-positive", "1");
-      setConfettiTick((v) => v + 1);
+      const timer = window.setTimeout(() => setConfettiTick((v) => v + 1), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [totalPnl]);
 
@@ -65,7 +71,9 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
         shouldTrigger = true;
       }
     }
-    if (shouldTrigger) setConfettiTick((v) => v + 1);
+    if (!shouldTrigger) return;
+    const timer = window.setTimeout(() => setConfettiTick((v) => v + 1), 0);
+    return () => window.clearTimeout(timer);
   }, [agents]);
 
   const statsCards = (
@@ -87,7 +95,10 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
 
   const tradesBlock = (
     <article className="glass">
-      <div className="section-title">Recent trades</div>
+      <div className="row between" style={{ alignItems: "center", padding: "0 12px" }}>
+        <div className="section-title" style={{ margin: "14px 0 10px" }}>Recent trades</div>
+        <ExportButton />
+      </div>
       {recentTrades.map((trade) => (
         <div key={trade.id} className="row between fs-13" style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-subtle)" }}>
           <span>
@@ -100,6 +111,30 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
           <span className="text-3 fs-12">{trade.ts}</span>
         </div>
       ))}
+    </article>
+  );
+
+  const exportDataBlock = (
+    <article className="glass export-data-card">
+      <div className="section-title" style={{ marginTop: 0 }}>Export Data</div>
+      <div className="col gap-2">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ width: "100%" }}
+          onClick={() => window.open("/api/export/trades.csv", "_blank", "noopener,noreferrer")}
+        >
+          Download Trade History (CSV)
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ width: "100%" }}
+          onClick={() => window.open("/api/export/report.pdf", "_blank", "noopener,noreferrer")}
+        >
+          Download Performance Report (PDF)
+        </button>
+      </div>
     </article>
   );
 
@@ -119,6 +154,7 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
           Day {dayChange >= 0 ? "+" : ""}${dayChange.toFixed(2)}
         </span>
       </article>
+      <TradingQuote isEmpty={!agents.length} />
       {statsCards}
 
       {isDesktop ? (
@@ -148,6 +184,8 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
           <aside className="dashboard-right">
             {tradesBlock}
             <AlertBanner alert={alerts[0]} />
+            <IntelligenceFeed />
+            {exportDataBlock}
           </aside>
         </div>
       ) : (
@@ -187,6 +225,8 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
             tradesBlock
           )}
           <AlertBanner alert={alerts[0]} />
+          <IntelligenceFeed />
+          {exportDataBlock}
         </>
       )}
       <AgentEvolution

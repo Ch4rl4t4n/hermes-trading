@@ -9,7 +9,7 @@ export default function Layout({ page, setPage, user, onLogout, children }) {
   return (
     <div className="app-layout">
       {isDesktop && <Sidebar page={page} onNav={setPage} user={user} onLogout={onLogout} />}
-      <main className="main-content" style={{ marginLeft: isDesktop ? 240 : 0, paddingBottom: isDesktop ? 0 : "calc(64px + env(safe-area-inset-bottom))" }}>
+      <main className="main-content" aria-label="Hlavný obsah" style={{ marginLeft: isDesktop ? 240 : 0, paddingBottom: isDesktop ? 0 : "calc(64px + env(safe-area-inset-bottom))" }}>
         {isDesktop ? <TopBar page={page} user={user} onNav={setPage} /> : <TopNav user={user} onMore={() => setPage("backtest")} />}
         {children}
       </main>
