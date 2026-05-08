@@ -415,7 +415,41 @@ def handle_webhook(sess: Session, payload: bytes, sig_header: str | None) -> tup
     configure_stripe()
     catalog = _get_catalog_from_db(sess)
     etype = event.get("type")
+    event_id = str(event.get("id") or "").strip()
     data_object = (event.get("data") or {}).get("object") or {}
+
+    try:
+        sess.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+                    event_id TEXT PRIMARY KEY,
+                    event_type TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+        )
+        if event_id:
+            inserted = sess.execute(
+                text(
+                    """
+                    INSERT INTO stripe_webhook_events (event_id, event_type)
+                    VALUES (:eid, :etype)
+                    ON CONFLICT (event_id) DO NOTHING
+                    RETURNING event_id
+                    """
+                ),
+                {"eid": event_id, "etype": str(etype or "")[:120]},
+            ).first()
+            if inserted is None:
+                sess.rollback()
+                return {"received": True, "duplicate": True, "type": etype}, 200
+        sess.commit()
+    except Exception:
+        sess.rollback()
+        log.exception("Stripe webhook idempotency guard failed for %s", etype)
+        return {"error": "Webhook persistence unavailable"}, 503
 
     try:
         if etype == "checkout.session.completed":
@@ -517,8 +551,7 @@ def handle_webhook(sess: Session, payload: bytes, sig_header: str | None) -> tup
     except Exception:
         sess.rollback()
         log.exception("Stripe webhook handler failed for %s", etype)
-
-    # After signature verification, always 200 so Stripe does not disable the endpoint.
+        return {"error": "Webhook processing failed", "type": etype}, 500
     return {"received": True, "type": etype}, 200
 
 

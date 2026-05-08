@@ -240,7 +240,8 @@ DRY_RUN = os.getenv("HERMES_DRY_RUN", "true").lower() == "true"
 PORT = int(os.getenv("HERMES_FLASK_PORT", "5000"))
 # Bind localhost when behind nginx; set HERMES_FLASK_HOST=0.0.0.0 for direct LAN access.
 _FLASK_BIND_HOST = os.getenv("HERMES_FLASK_HOST", "127.0.0.1")
-INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "hermes-internal-2026")
+INTERNAL_API_TOKEN = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
+_INTERNAL_API_TOKEN_WEAK_VALUES = frozenset({"", "hermes-internal-2026", "changeme", "placeholder"})
 _INTERNAL_API_ALLOWED_PATHS = frozenset(
     {
         "/api/agents/pnl",
@@ -255,10 +256,6 @@ _INTERNAL_API_ALLOWED_PATHS = frozenset(
         "/api/agent-builder/create",
         "/api/agent-builder/ai-summary",
         "/api/ai/builder",
-        "/api/admin/users",
-        "/api/admin/revenue",
-        "/api/admin/agents",
-        "/api/admin/assign-demo-agents",
         "/api/system-events",
         "/api/trades/history",
         "/api/auth/status",
@@ -273,17 +270,10 @@ _INTERNAL_API_ALLOWED_PATHS = frozenset(
         "/api/alerts/rules",
         "/api/agents/badges",
         "/api/support/ticket",
-        "/api/admin/support/tickets",
     }
 )
 
 _INTERNAL_API_PARAMETERIZED_PATTERNS = (
-    re.compile(r"^/api/admin/users/\d+/tier$"),
-    re.compile(r"^/api/admin/users/\d+/detail$"),
-    re.compile(r"^/api/admin/agents/\d+/toggle$"),
-    re.compile(r"^/api/admin/support/tickets/\d+$"),
-    re.compile(r"^/api/admin/support/tickets/\d+/reply$"),
-    re.compile(r"^/api/admin/support/tickets/\d+/status$"),
     re.compile(r"^/api/alerts/rules/\d+$"),
     re.compile(r"^/api/alerts/rules/\d+/toggle$"),
 )
@@ -747,7 +737,12 @@ def _resolve_identity() -> None:
     if _internal_api_path_allowed(request.path):
         itok = (request.headers.get("X-Internal-Token") or "").strip()
         iemail = (request.headers.get("X-User-Email") or "").strip().lower()
-        if itok and iemail and secrets.compare_digest(itok, INTERNAL_API_TOKEN):
+        if (
+            itok
+            and iemail
+            and INTERNAL_API_TOKEN not in _INTERNAL_API_TOKEN_WEAK_VALUES
+            and secrets.compare_digest(itok, INTERNAL_API_TOKEN)
+        ):
             iuser = sess.execute(select(User).where(func.lower(User.email) == iemail)).scalar_one_or_none()
             if iuser and iuser.is_active:
                 g.db_user = iuser
@@ -756,6 +751,8 @@ def _resolve_identity() -> None:
                 if iacc and iacc.account_status == "active":
                     g.db_account = iacc
                 return
+        elif itok and INTERNAL_API_TOKEN in _INTERNAL_API_TOKEN_WEAK_VALUES:
+            log.warning("Rejected internal API auth on %s due to weak INTERNAL_API_TOKEN", request.path)
 
     if session.get("logged_in") and session.get("auth_kind") == "db":
         uid = session.get("user_id")
