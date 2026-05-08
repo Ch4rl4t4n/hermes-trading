@@ -1,0 +1,110 @@
+version: "3.9"
+
+# Alternative deployment recipe — primary infra is systemd-native.
+# Use this file for local development or for spinning up an isolated stack
+# on a fresh box.
+#
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# Production on the Hetzner host continues to run via systemd; only the
+# Redis service section below would be installed there if you preferred
+# Docker over `apt install redis-server`.
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: hermes-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 60
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: hermes-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hermes}
+      POSTGRES_USER: ${POSTGRES_USER:-hermes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hermes}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-hermes}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: hermes-api
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:8001"
+    command: uvicorn hermes.api.main:app --host 0.0.0.0 --port 8001 --workers 2
+
+  workers:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: hermes-workers
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+    command: >
+      dramatiq core.swarm_actors
+      --processes 4
+      --threads 8
+      --queues hermes_priority hermes_default hermes_low
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5000:5000"
+    command: python -m dashboard.app
+
+volumes:
+  redis_data:
+  postgres_data:

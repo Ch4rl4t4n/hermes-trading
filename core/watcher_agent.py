@@ -28,6 +28,12 @@ load_dotenv(_BASE / ".env")
 from core.leaderboard import compute_leaderboard_cache
 from core.telegram_bot import get_updates, process_update, send_alert
 
+# Swarm v2 — registry heartbeat (best-effort, never blocks watcher)
+try:
+    from core.swarm_registry import swarm_registry as _swarm_registry
+except Exception:  # noqa: BLE001
+    _swarm_registry = None  # type: ignore[assignment]
+
 APP_URL = (os.getenv("DASHBOARD_PUBLIC_BASE_URL") or "http://127.0.0.1:5000").strip().rstrip("/")
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -37,6 +43,7 @@ ADMIN_EMAIL = (os.getenv("ADMIN_EMAIL") or SMTP_USER or "").strip()
 WATCHER_SERVICE_NAME = os.getenv("HERMES_WATCHER_SERVICE", "hermes-dashboard")
 _CYCLE_SEC = int(os.getenv("WATCHER_CYCLE_SEC", "300"))
 _CANDLE_REFRESH_MARK = _BASE / ".watcher_historical_candles_date"
+_API_RATE_RESET_MARK = _BASE / ".watcher_api_rate_reset_date"
 
 
 def _maybe_refresh_historical_candles() -> None:
@@ -61,11 +68,91 @@ def _maybe_refresh_historical_candles() -> None:
         log_event("historical_candles", "warning", f"Candle cache refresh failed: {exc}")
 
 
+def reset_api_rate_limits(force: bool = False) -> None:
+    """Reset API key daily counters once per UTC day."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    if not force:
+        try:
+            last = _API_RATE_RESET_MARK.read_text().strip() if _API_RATE_RESET_MARK.exists() else ""
+        except OSError:
+            last = ""
+        if last == today:
+            return
+
+    eng = _engine()
+    if eng is None:
+        return
+    try:
+        with eng.begin() as conn:
+            conn.execute(text("UPDATE api_keys SET requests_today = 0"))
+        try:
+            _API_RATE_RESET_MARK.write_text(today)
+        except OSError:
+            pass
+        log_event("api_keys", "info", "Daily API rate limits reset")
+    except Exception as exc:  # noqa: BLE001
+        log_event("api_keys", "warning", f"Daily API rate limit reset failed: {exc}")
+
+
 def _engine():
     url = (os.getenv("DATABASE_URL") or "").strip()
     if not url:
         return None
     return create_engine(url, pool_pre_ping=True, future=True)
+
+
+def _resolve_trading_agent_id(conn, symbol_candidates: list[str]) -> str | None:
+    for symbol in symbol_candidates:
+        if not symbol:
+            continue
+        row = conn.execute(
+            text(
+                """
+                SELECT id
+                FROM trading_agents
+                WHERE UPPER(symbol) = :symbol
+                ORDER BY id ASC
+                LIMIT 1
+                """
+            ),
+            {"symbol": str(symbol).upper()},
+        ).mappings().first()
+        if row is not None:
+            return str(row["id"])
+    return None
+
+
+def save_agent_memory(agent_id: str, user_id: int, key: str, value: str, conn=None) -> None:
+    """Store/update per-agent memory entry after watcher trade events."""
+    clean_key = str(key or "").strip()[:100]
+    if not clean_key:
+        return
+    clean_val = str(value or "")[:2000]
+    payload = {
+        "aid": str(agent_id),
+        "uid": int(user_id),
+        "mkey": clean_key,
+        "mval": clean_val,
+    }
+    query = text(
+        """
+        INSERT INTO agent_memory (agent_id, user_id, memory_key, memory_value, updated_at)
+        VALUES (:aid, :uid, :mkey, :mval, NOW())
+        ON CONFLICT (agent_id, user_id, memory_key)
+        DO UPDATE SET memory_value = EXCLUDED.memory_value, updated_at = NOW()
+        """
+    )
+    try:
+        if conn is not None:
+            conn.execute(query, payload)
+            return
+        eng = _engine()
+        if eng is None:
+            return
+        with eng.begin() as own_conn:
+            own_conn.execute(query, payload)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[Memory] Error saving: {exc}")
 
 
 def log_event(event_type: str, severity: str, message: str, details: str | None = None) -> None:
@@ -992,6 +1079,56 @@ def process_user_agents() -> None:
             log_event("user_agents", "warning", f"user_agent {row['id']} trade: {exc}")
             continue
 
+        try:
+            with eng.begin() as mem_conn:
+                mapped_agent_id = _resolve_trading_agent_id(
+                    mem_conn,
+                    [
+                        str(sym_pair or "").upper(),
+                        str(sym_raw or "").upper(),
+                        str(base_sym or "").upper(),
+                    ],
+                )
+                if mapped_agent_id is not None:
+                    count_row = mem_conn.execute(
+                        text(
+                            """
+                            SELECT COUNT(*)::int AS c
+                            FROM paper_trades
+                            WHERE user_id = :uid AND user_agent_id = :uaid
+                            """
+                        ),
+                        {"uid": int(row["user_id"]), "uaid": int(row["id"])},
+                    ).mappings().first()
+                    total_logged = int((count_row or {}).get("c") or 0)
+                    best_row = mem_conn.execute(
+                        text(
+                            """
+                            SELECT symbol, COALESCE(SUM(pnl), 0) AS total_pnl
+                            FROM paper_trades
+                            WHERE user_id = :uid
+                              AND user_agent_id = :uaid
+                            GROUP BY symbol
+                            ORDER BY total_pnl DESC, symbol ASC
+                            LIMIT 1
+                            """
+                        ),
+                        {"uid": int(row["user_id"]), "uaid": int(row["id"])},
+                    ).mappings().first()
+                    best_symbol = str((best_row or {}).get("symbol") or sym_pair)
+                    save_agent_memory(mapped_agent_id, int(row["user_id"]), "last_trade_symbol", sym_pair, conn=mem_conn)
+                    save_agent_memory(mapped_agent_id, int(row["user_id"]), "last_trade_pnl", str(pnl), conn=mem_conn)
+                    save_agent_memory(
+                        mapped_agent_id,
+                        int(row["user_id"]),
+                        "total_trades_logged",
+                        str(total_logged),
+                        conn=mem_conn,
+                    )
+                    save_agent_memory(mapped_agent_id, int(row["user_id"]), "best_symbol", best_symbol, conn=mem_conn)
+        except Exception as exc:  # noqa: BLE001
+            log_event("user_agents", "warning", f"user_agent memory update failed for {row['id']}: {exc}")
+
         check_daily_drawdown(int(row["id"]), int(row["user_id"]), float(watcher_cfg.get("max_daily_drawdown_pct", 5.0)))
 
 
@@ -1012,6 +1149,7 @@ def run_watcher_cycle() -> None:
                 )
     compute_and_store_pnl_snapshots()
     process_user_agents()
+    reset_api_rate_limits()
     _maybe_refresh_historical_candles()
     check_and_fire_alerts()
     now = datetime.now(timezone.utc)
@@ -1053,9 +1191,52 @@ def run_watcher_cycle() -> None:
     check_ssl_cert()
 
 
+def _swarm_register_self() -> None:
+    """Register this watcher process as `infra-001` in the Maintenance swarm."""
+    if _swarm_registry is None:
+        return
+    try:
+        _swarm_registry.register_agent(
+            agent_id="infra-001",
+            name="Monitoring Guardian",
+            swarm="maintenance",
+            capabilities=[
+                "maintenance",
+                "monitoring",
+                "alerts",
+                "ssl",
+                "disk",
+                "leaderboard",
+            ],
+            agent_type="lead",
+            priority=7,
+            metadata={
+                "service": "hermes-watcher",
+                "cycle_sec": int(_CYCLE_SEC),
+                "host": socket.gethostname(),
+                "version": "2.0",
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _swarm_heartbeat() -> None:
+    """Best-effort heartbeat — never raises."""
+    if _swarm_registry is None:
+        return
+    try:
+        _swarm_registry.heartbeat("infra-001")
+    except Exception:  # noqa: BLE001
+        pass
+
+
 if __name__ == "__main__":
     print("Hermes Watcher Agent started")
     send_admin_alert("[HERMES] Watcher Started", "System monitoring is now active.")
+    _swarm_register_self()
+    _swarm_heartbeat()
     while True:
         run_watcher_cycle()
+        _swarm_heartbeat()
         time.sleep(max(60, _CYCLE_SEC))

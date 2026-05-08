@@ -1,0 +1,25 @@
+[Unit]
+Description=Hermes Swarm v2 Dramatiq Workers
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target redis-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/hermes
+Environment=PATH=/root/hermes/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONPATH=/root:/root/hermes
+EnvironmentFile=/root/hermes/.env
+
+# Uses script wrapper for reliable env default expansion in systemd.
+# Tune via HERMES_WORKER_PROCESSES / HERMES_WORKER_THREADS in /root/hermes/.env.
+ExecStart=/root/hermes/scripts/run_dramatiq_workers.sh
+
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

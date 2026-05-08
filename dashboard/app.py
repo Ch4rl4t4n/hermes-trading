@@ -138,6 +138,11 @@ from core.community_marketplace import (
     sort_listing_rows,
     validate_publish_requirements,
 )
+from core.queue_manager import queue_manager, r as queue_redis
+from core.task_router import task_router
+from core.orchestra_agent import orchestra
+from core.intelligence_stalker import stalker
+from core.swarm_definitions import DEFAULT_SWARMS, seed_default_swarms
 from core.referral_helpers import (
     apply_referral_tracking,
     referral_info_for_user,
@@ -181,6 +186,19 @@ from core.models import (
     TradingConfiguration,
     User,
 )
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional dependency in some environments
+    psutil = None
+
+try:
+    import anthropic
+
+    ANTHROPIC_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency in some environments
+    anthropic = None
+    ANTHROPIC_AVAILABLE = False
 from dashboard.multitenant import bundle_for_account
 from sqlalchemy import asc, desc, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
@@ -360,6 +378,14 @@ try:
     _ensure_support_tables()
 except Exception:
     log.exception("support tables ensure failed")
+
+try:
+    with app.app_context():
+        seed_default_swarms(queue_manager)
+        orchestra.start()
+        stalker.start()
+except Exception:
+    log.warning("default swarm seeding skipped", exc_info=True)
 
 _GOOGLE_CID = dash_config.GOOGLE_CLIENT_ID
 _GOOGLE_CS = dash_config.GOOGLE_CLIENT_SECRET
@@ -542,9 +568,9 @@ def _security_headers(resp: Response):
             "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
         )
     path = request.path or ""
-    if path.startswith("/v1/"):
+    if path.startswith("/v1/") or path.startswith("/api/v1/"):
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-API-Key"
         lim = int(getattr(g, "api_rate_limit", API_RATE_LIMIT_PER_MIN))
         rem = int(getattr(g, "api_rate_remaining", lim))
         rst = int(getattr(g, "api_rate_reset", int(time.time()) + 60))
@@ -570,7 +596,7 @@ def _security_headers(resp: Response):
 
 @app.before_request
 def _v1_request_start():
-    if (request.path or "").startswith("/v1/"):
+    if (request.path or "").startswith("/v1/") or (request.path or "").startswith("/api/v1/"):
         g._v1_started_at = time.time()
     return None
 
@@ -2925,6 +2951,157 @@ def api_agents():
     return jsonify(out)
 
 
+def _ensure_memory_agent_access(sess, user_id: int, agent_id: str) -> bool:
+    row = sess.execute(
+        text(
+            """
+            SELECT 1
+            FROM user_subscriptions
+            WHERE user_id = :uid AND agent_id = :aid
+            LIMIT 1
+            """
+        ),
+        {"uid": int(user_id), "aid": str(agent_id)},
+    ).first()
+    return row is not None
+
+
+@app.route("/api/agents/<agent_id>/memory", methods=["GET"])
+@login_required
+def get_agent_memory(agent_id: str):
+    _resolve_identity()
+    if getattr(g, "auth_kind", None) != "db" or not getattr(g, "db_user", None):
+        return jsonify({"error": "A registered account is required."}), 400
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    clean_agent_id = str(agent_id or "").strip()
+    if not clean_agent_id or len(clean_agent_id) > 64:
+        return jsonify({"error": "invalid agent id"}), 400
+
+    uid = int(g.db_user.id)
+    sess = db.db_session()
+    try:
+        if not _ensure_memory_agent_access(sess, uid, clean_agent_id):
+            return jsonify({"error": "Agent not found for user."}), 404
+        rows = sess.execute(
+            text(
+                """
+                SELECT memory_key, memory_value, updated_at
+                FROM agent_memory
+                WHERE agent_id = :aid AND user_id = :uid
+                ORDER BY updated_at DESC
+                """
+            ),
+            {"aid": clean_agent_id, "uid": uid},
+        ).mappings().all()
+        out = [
+            {
+                "key": row["memory_key"],
+                "value": row["memory_value"],
+                "updated_at": row["updated_at"].isoformat() if row.get("updated_at") is not None else None,
+            }
+            for row in rows
+        ]
+        return jsonify(out)
+    except Exception:  # noqa: BLE001
+        log.exception("get agent memory")
+        return jsonify({"error": "Could not load memory."}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/agents/<agent_id>/memory", methods=["POST"])
+@login_required
+def set_agent_memory(agent_id: str):
+    _resolve_identity()
+    if getattr(g, "auth_kind", None) != "db" or not getattr(g, "db_user", None):
+        return jsonify({"error": "A registered account is required."}), 400
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    clean_agent_id = str(agent_id or "").strip()
+    if not clean_agent_id or len(clean_agent_id) > 64:
+        return jsonify({"error": "invalid agent id"}), 400
+
+    data = request.get_json(silent=True) or {}
+    raw_key = str(data.get("key") or "").strip()
+    raw_value = str(data.get("value") or "")
+    if len(raw_key) > 100:
+        return jsonify({"error": "key too long"}), 400
+    if len(raw_value) > 2000:
+        return jsonify({"error": "value too long"}), 400
+    key = raw_key
+    value = raw_value
+    if not key:
+        return jsonify({"error": "key required"}), 400
+
+    uid = int(g.db_user.id)
+    sess = db.db_session()
+    try:
+        if not _ensure_memory_agent_access(sess, uid, clean_agent_id):
+            return jsonify({"error": "Agent not found for user."}), 404
+        sess.execute(
+            text(
+                """
+                INSERT INTO agent_memory (agent_id, user_id, memory_key, memory_value, updated_at)
+                VALUES (:aid, :uid, :mkey, :mval, NOW())
+                ON CONFLICT (agent_id, user_id, memory_key)
+                DO UPDATE SET memory_value = EXCLUDED.memory_value, updated_at = NOW()
+                """
+            ),
+            {"aid": clean_agent_id, "uid": uid, "mkey": key, "mval": value},
+        )
+        sess.commit()
+        return jsonify({"status": "ok"})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("set agent memory")
+        return jsonify({"error": "Could not store memory."}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/agents/<agent_id>/memory/<key>", methods=["DELETE"])
+@login_required
+def delete_agent_memory(agent_id: str, key: str):
+    _resolve_identity()
+    if getattr(g, "auth_kind", None) != "db" or not getattr(g, "db_user", None):
+        return jsonify({"error": "A registered account is required."}), 400
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    clean_agent_id = str(agent_id or "").strip()
+    if not clean_agent_id or len(clean_agent_id) > 64:
+        return jsonify({"error": "invalid agent id"}), 400
+
+    clean_key = str(key or "").strip()
+    if len(clean_key) > 100:
+        return jsonify({"error": "key too long"}), 400
+    if not clean_key:
+        return jsonify({"error": "key required"}), 400
+
+    uid = int(g.db_user.id)
+    sess = db.db_session()
+    try:
+        if not _ensure_memory_agent_access(sess, uid, clean_agent_id):
+            return jsonify({"error": "Agent not found for user."}), 404
+        sess.execute(
+            text(
+                """
+                DELETE FROM agent_memory
+                WHERE agent_id = :aid AND user_id = :uid AND memory_key = :mkey
+                """
+            ),
+            {"aid": clean_agent_id, "uid": uid, "mkey": clean_key},
+        )
+        sess.commit()
+        return jsonify({"status": "deleted"})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("delete agent memory")
+        return jsonify({"error": "Could not delete memory."}), 500
+    finally:
+        sess.close()
+
+
 def _detect_regime_for(symbol: str, asset_type: str) -> dict:
     """Cached regime detection used by /api/agent and /api/regime."""
     cached = _regime_cache.get(symbol)
@@ -3484,6 +3661,231 @@ def api_export_trades():
     resp = Response(buf.getvalue(), mimetype="text/csv")
     resp.headers["Content-Disposition"] = "attachment; filename=hermes-trades.csv"
     return resp
+
+
+@app.route("/api/export/trades.csv", methods=["GET"])
+@login_required
+def export_trades_csv():
+    _resolve_identity()
+    user = getattr(g, "db_user", None)
+    if user is None:
+        return jsonify({"error": "unauthorized"}), 401
+    agent_id = (request.args.get("agent_id") or "").strip()
+    try:
+        limit = min(max(int(request.args.get("limit", 1000)), 1), 5000)
+    except (TypeError, ValueError):
+        limit = 1000
+
+    where = "WHERE pt.user_id = :uid"
+    params: dict[str, Any] = {"uid": int(user.id), "lim": int(limit)}
+    if agent_id:
+        where += " AND CAST(pt.agent_id AS TEXT) = :aid"
+        params["aid"] = agent_id
+
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.connect() as conn:
+        rows = conn.execute(
+            text(
+                f"""
+                SELECT pt.timestamp AS created_at,
+                       ta.name AS agent_name,
+                       pt.symbol,
+                       pt.action AS side,
+                       pt.price,
+                       pt.quantity,
+                       pt.pnl
+                FROM paper_trades pt
+                LEFT JOIN trading_agents ta ON ta.id = pt.agent_id
+                {where}
+                ORDER BY pt.timestamp DESC
+                LIMIT :lim
+                """
+            ),
+            params,
+        ).mappings().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Agent", "Symbol", "Side", "Price", "Quantity", "P&L", "Status"])
+    for r in rows:
+        created_at = r.get("created_at")
+        created_at_s = created_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(created_at, "strftime") else str(created_at or "")[:19]
+        writer.writerow(
+            [
+                created_at_s,
+                r.get("agent_name") or "N/A",
+                r.get("symbol") or "",
+                r.get("side") or "",
+                float(r.get("price") or 0.0),
+                float(r.get("quantity") or 0.0),
+                float(r.get("pnl")) if r.get("pnl") is not None else "",
+                "closed",
+            ]
+        )
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "text/csv"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename=hermes_trades_{datetime.now(timezone.utc).strftime("%Y%m%d")}.csv'
+    )
+    return response
+
+
+@app.route("/api/export/report.pdf", methods=["GET"])
+@login_required
+def export_report_pdf():
+    _resolve_identity()
+    user = getattr(g, "db_user", None)
+    if user is None:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        from reportlab.lib import colors  # noqa: PLC0415
+        from reportlab.lib.pagesizes import A4  # noqa: PLC0415
+        from reportlab.lib.styles import getSampleStyleSheet  # noqa: PLC0415
+        from reportlab.lib.units import mm  # noqa: PLC0415
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle  # noqa: PLC0415
+    except Exception:
+        return jsonify({"error": "PDF dependency missing: install reportlab"}), 503
+
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.connect() as conn:
+        stats = conn.execute(
+            text(
+                """
+                SELECT
+                    COALESCE(SUM(pnl), 0) AS total_pnl,
+                    COUNT(*)::int AS total_trades,
+                    COUNT(CASE WHEN pnl > 0 THEN 1 END)::int AS winning_trades,
+                    COUNT(CASE WHEN pnl < 0 THEN 1 END)::int AS losing_trades,
+                    COALESCE(MAX(pnl), 0) AS best_trade,
+                    COALESCE(MIN(pnl), 0) AS worst_trade,
+                    COALESCE(AVG(pnl), 0) AS avg_pnl
+                FROM paper_trades
+                WHERE user_id = :uid
+                """
+            ),
+            {"uid": int(user.id)},
+        ).mappings().first() or {}
+        recent_trades = conn.execute(
+            text(
+                """
+                SELECT pt.timestamp AS created_at,
+                       ta.name AS agent,
+                       pt.symbol,
+                       pt.action AS side,
+                       pt.price,
+                       pt.pnl
+                FROM paper_trades pt
+                LEFT JOIN trading_agents ta ON ta.id = pt.agent_id
+                WHERE pt.user_id = :uid
+                ORDER BY pt.timestamp DESC
+                LIMIT 20
+                """
+            ),
+            {"uid": int(user.id)},
+        ).mappings().all()
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm,
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    story.append(Paragraph("HERMES TRADING PLATFORM", styles["Title"]))
+    story.append(Paragraph(f"Performance Report - {datetime.now(timezone.utc).strftime('%B %d, %Y')}", styles["Normal"]))
+    story.append(
+        Paragraph(
+            f"Account: {getattr(user, 'email', 'N/A')} | Tier: {str(getattr(user, 'tier', 'basic')).upper()}",
+            styles["Normal"],
+        )
+    )
+    story.append(Spacer(1, 10 * mm))
+
+    total_trades = int(stats.get("total_trades") or 0)
+    winning_trades = int(stats.get("winning_trades") or 0)
+    win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+    summary_data = [
+        ["Metric", "Value"],
+        ["Total P&L", f"${float(stats.get('total_pnl') or 0):+.2f}"],
+        ["Total Trades", str(total_trades)],
+        ["Win Rate", f"{win_rate:.1f}%"],
+        ["Winning Trades", str(winning_trades)],
+        ["Losing Trades", str(int(stats.get("losing_trades") or 0))],
+        ["Best Trade", f"${float(stats.get('best_trade') or 0):+.2f}"],
+        ["Worst Trade", f"${float(stats.get('worst_trade') or 0):+.2f}"],
+        ["Avg P&L / Trade", f"${float(stats.get('avg_pnl') or 0):+.2f}"],
+    ]
+    t = Table(summary_data, colWidths=[80 * mm, 80 * mm])
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1f4e")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#f8f9ff"), colors.white]),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e4f0")),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("PADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    story.append(Paragraph("SUMMARY", styles["Heading2"]))
+    story.append(t)
+    story.append(Spacer(1, 8 * mm))
+
+    trades_data = [["Date", "Agent", "Symbol", "Side", "Price", "P&L"]]
+    for r in recent_trades:
+        created_at = r.get("created_at")
+        d_s = created_at.strftime("%Y-%m-%d") if hasattr(created_at, "strftime") else str(created_at or "")[:10]
+        trades_data.append(
+            [
+                d_s,
+                str(r.get("agent") or "N/A")[:20],
+                r.get("symbol") or "",
+                r.get("side") or "",
+                f"${float(r.get('price') or 0.0):.2f}",
+                f"${float(r.get('pnl') or 0.0):+.2f}" if r.get("pnl") is not None else "-",
+            ]
+        )
+    t2 = Table(trades_data, colWidths=[25 * mm, 45 * mm, 25 * mm, 15 * mm, 25 * mm, 25 * mm])
+    t2.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1f4e")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#f8f9ff"), colors.white]),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e4f0")),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("PADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    story.append(Paragraph("RECENT TRADES (Last 20)", styles["Heading2"]))
+    story.append(t2)
+    story.append(Spacer(1, 10 * mm))
+    story.append(Paragraph("Generated by Hermes Trading Platform - letagentscook.lol", styles["Normal"]))
+    doc.build(story)
+    buffer.seek(0)
+
+    response = make_response(buffer.getvalue())
+    response.headers["Content-Type"] = "application/pdf"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename=hermes_report_{datetime.now(timezone.utc).strftime("%Y%m%d")}.pdf'
+    )
+    return response
 
 
 @app.route("/api/export/performance")
@@ -4967,6 +5369,257 @@ def api_marketplace_slots():
     return jsonify(get_marketplace_slots(u))
 
 
+def _community_marketplace_user():
+    _resolve_identity()
+    if getattr(g, "auth_kind", None) != "db":
+        return None
+    return getattr(g, "db_user", None)
+
+
+def _community_tier(user: Any) -> str:
+    return normalize_tier(effective_tier(user)) if user is not None else TIER_BASIC
+
+
+@app.route("/api/community/agents", methods=["GET"])
+@login_required
+def get_community_agents():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    user = _community_marketplace_user()
+    if user is None:
+        return jsonify({"error": "registered account required"}), 403
+
+    category = (request.args.get("category", "all") or "all").strip().lower()
+    sort = (request.args.get("sort", "newest") or "newest").strip().lower()
+    allowed_categories = {"all", "crypto", "stocks", "commodities"}
+    if category not in allowed_categories:
+        category = "all"
+    order = {
+        "newest": "ca.created_at DESC",
+        "top": "ca.win_rate DESC",
+        "popular": "ca.subscribers DESC",
+    }.get(sort, "ca.created_at DESC")
+    params: dict[str, Any] = {}
+    where_parts = ["ca.status = 'approved'"]
+    if category != "all":
+        where_parts.append("LOWER(ca.category) = :cat")
+        params["cat"] = category
+    where_sql = " AND ".join(where_parts)
+
+    sess = db.db_session()
+    try:
+        rows = sess.execute(
+            text(
+                f"""
+                SELECT ca.*,
+                       u.username AS author_handle,
+                       u.tier AS author_tier
+                FROM community_agents ca
+                JOIN users u ON u.id = ca.user_id
+                WHERE {where_sql}
+                ORDER BY {order}
+                LIMIT 50
+                """
+            ),
+            params,
+        ).mappings().all()
+        return jsonify([_serialize_row_dt(dict(r)) for r in rows])
+    except Exception:  # noqa: BLE001
+        log.exception("community agents list")
+        return jsonify({"error": "failed to load community agents"}), 500
+    finally:
+        sess.close()
+
+
+def _submit_community_agent_impl():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    user = _community_marketplace_user()
+    if user is None:
+        return jsonify({"error": "registered account required"}), 403
+    if _community_tier(user) not in (TIER_PRO, TIER_ELITE, TIER_ADMIN):
+        return jsonify({"error": "Pro or Elite tier required"}), 403
+
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip()[:100]
+    symbol = str(data.get("symbol") or "").strip()[:20]
+    category = str(data.get("category") or "crypto").strip().lower()[:20] or "crypto"
+    strategy = str(data.get("strategy") or "").strip()[:50]
+    risk_level = str(data.get("risk_level") or "medium").strip().lower()[:20] or "medium"
+    description = str(data.get("description") or "").strip()[:1000]
+    try:
+        price = float(data.get("price_monthly", 0) or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid price_monthly"}), 400
+    if not name or not symbol or not strategy:
+        return jsonify({"error": "name, symbol and strategy required"}), 400
+    if category not in ("crypto", "stocks", "commodities"):
+        return jsonify({"error": "invalid category"}), 400
+    if risk_level not in ("low", "medium", "high"):
+        return jsonify({"error": "invalid risk_level"}), 400
+    if price < 0 or price > 99:
+        return jsonify({"error": "price_monthly must be between 0 and 99"}), 400
+
+    sess = db.db_session()
+    try:
+        sess.execute(
+            text(
+                """
+                INSERT INTO community_agents
+                  (user_id, name, symbol, category, strategy, risk_level, description, price_monthly)
+                VALUES
+                  (:uid, :name, :sym, :cat, :strat, :risk, :desc, :price)
+                """
+            ),
+            {
+                "uid": int(user.id),
+                "name": name,
+                "sym": symbol,
+                "cat": category,
+                "strat": strategy,
+                "risk": risk_level,
+                "desc": description,
+                "price": price,
+            },
+        )
+        sess.commit()
+        return jsonify({"status": "submitted", "message": "Agent submitted for review"})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("community submit agent")
+        return jsonify({"error": "submission failed"}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/community/agents", methods=["POST"])
+@login_required
+def submit_community_agent():
+    return _submit_community_agent_impl()
+
+
+@app.route("/api/community/my-agents", methods=["POST"])
+@login_required
+def submit_community_agent_alias():
+    return _submit_community_agent_impl()
+
+
+@app.route("/api/community/my-agents", methods=["GET"])
+@login_required
+def my_community_agents():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    user = _community_marketplace_user()
+    if user is None:
+        return jsonify({"error": "registered account required"}), 403
+    sess = db.db_session()
+    try:
+        rows = sess.execute(
+            text(
+                """
+                SELECT *
+                FROM community_agents
+                WHERE user_id = :uid
+                ORDER BY created_at DESC
+                """
+            ),
+            {"uid": int(user.id)},
+        ).mappings().all()
+        return jsonify([_serialize_row_dt(dict(r)) for r in rows])
+    except Exception:  # noqa: BLE001
+        log.exception("my community agents")
+        return jsonify({"error": "failed to load submissions"}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/admin/community/agents/<int:agent_id>/review", methods=["POST"])
+@login_required
+def review_community_agent(agent_id: int):
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    user = _community_marketplace_user()
+    if user is None or _community_tier(user) != TIER_ADMIN:
+        return jsonify({"error": "Admin only"}), 403
+    body = request.get_json(silent=True) or {}
+    action = str(body.get("action") or "").strip().lower()
+    reason = str(body.get("reason") or "").strip()[:1000]
+    if action not in ("approve", "reject"):
+        return jsonify({"error": "action must be approve or reject"}), 400
+    if action == "reject" and not reason:
+        return jsonify({"error": "reason is required for reject"}), 400
+
+    sess = db.db_session()
+    try:
+        if action == "approve":
+            row = sess.execute(
+                text(
+                    """
+                    UPDATE community_agents
+                    SET status = 'approved',
+                        reject_reason = NULL,
+                        approved_at = NOW()
+                    WHERE id = :id AND status = 'pending'
+                    RETURNING id
+                    """
+                ),
+                {"id": int(agent_id)},
+            ).first()
+        else:
+            row = sess.execute(
+                text(
+                    """
+                    UPDATE community_agents
+                    SET status = 'rejected',
+                        reject_reason = :reason
+                    WHERE id = :id AND status = 'pending'
+                    RETURNING id
+                    """
+                ),
+                {"id": int(agent_id), "reason": reason},
+            ).first()
+        if row is None:
+            sess.rollback()
+            return jsonify({"error": "pending community agent not found"}), 404
+        sess.commit()
+        return jsonify({"status": "ok"})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("review community agent")
+        return jsonify({"error": "review failed"}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/admin/community/agents/pending", methods=["GET"])
+@login_required
+def pending_community_agents():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    user = _community_marketplace_user()
+    if user is None or _community_tier(user) != TIER_ADMIN:
+        return jsonify({"error": "Admin only"}), 403
+    sess = db.db_session()
+    try:
+        rows = sess.execute(
+            text(
+                """
+                SELECT ca.*, u.username AS handle, u.email
+                FROM community_agents ca
+                JOIN users u ON u.id = ca.user_id
+                WHERE ca.status = 'pending'
+                ORDER BY ca.created_at ASC
+                """
+            )
+        ).mappings().all()
+        return jsonify([_serialize_row_dt(dict(r)) for r in rows])
+    except Exception:  # noqa: BLE001
+        log.exception("pending community agents")
+        return jsonify({"error": "failed to load pending list"}), 500
+    finally:
+        sess.close()
+
+
 def _coerce_jsonb_mapping(val: Any) -> dict[str, Any]:
     if isinstance(val, dict):
         return val
@@ -5035,37 +5688,46 @@ def api_backtest_history():
     eng = db.get_engine()
     if eng is None:
         return jsonify({"error": "database unavailable"}), 503
+    result_id_raw = request.args.get("id")
     with eng.connect() as conn:
+        if result_id_raw not in (None, ""):
+            try:
+                result_id = int(result_id_raw)
+            except (TypeError, ValueError):
+                return jsonify({"error": "invalid id"}), 400
+            row = conn.execute(
+                text(
+                    """
+                    SELECT id, symbol, strategy, timeframe, start_date, end_date,
+                           initial_capital, final_capital, total_return, max_drawdown,
+                           win_rate, total_trades, winning_trades, sharpe_ratio,
+                           equity_curve, trades_log, created_at
+                    FROM backtest_results
+                    WHERE id = :id AND user_id = :uid
+                    LIMIT 1
+                    """
+                ),
+                {"id": result_id, "uid": int(u.id)},
+            ).mappings().first()
+            if row is None:
+                return jsonify({"error": "not found"}), 404
+            return jsonify(_serialize_row_dt(dict(row)))
+
         rows = conn.execute(
-            text("""
-                SELECT
-                    COALESCE(ua.name, ta.name, '') AS agent_name,
-                    br.period_days,
-                    br.timeframe,
-                    (br.result_json->>'total_pnl_pct')::float AS total_pnl_pct,
-                    br.created_at
-                FROM backtest_results br
-                LEFT JOIN user_agents ua ON br.user_agent_id = ua.id
-                LEFT JOIN trading_agents ta ON br.trading_agent_id = ta.id
-                WHERE br.user_id = :uid
-                ORDER BY br.created_at DESC
-                LIMIT 10
-            """),
+            text(
+                """
+                SELECT id, symbol, strategy, timeframe, start_date, end_date,
+                       initial_capital, final_capital, total_return, max_drawdown,
+                       win_rate, total_trades, sharpe_ratio, created_at
+                FROM backtest_results
+                WHERE user_id = :uid
+                ORDER BY created_at DESC
+                LIMIT 20
+                """
+            ),
             {"uid": int(u.id)},
         ).mappings().all()
-    out = []
-    for r in rows:
-        ca = r.get("created_at")
-        out.append(
-            {
-                "agent_name": r.get("agent_name") or "",
-                "period_days": int(r["period_days"] or 0),
-                "timeframe": r.get("timeframe") or "",
-                "total_pnl_pct": float(r["total_pnl_pct"] or 0),
-                "created_at": ca.isoformat() if hasattr(ca, "isoformat") else str(ca),
-            }
-        )
-    return jsonify({"history": out})
+    return jsonify([_serialize_row_dt(dict(r)) for r in rows])
 
 
 @app.route("/api/backtest/run", methods=["POST"])
@@ -5076,129 +5738,93 @@ def api_backtest_run():
     u = _marketplace_db_user()
     if u is None:
         return jsonify({"error": "Vyžaduje sa registrovaný účet."}), 400
+    from core.backtest_engine import run_backtest as run_real_backtest
+
     body = request.get_json(silent=True) or {}
-    agent_type = (body.get("agent_type") or "").strip().lower()
-    agent_id = body.get("agent_id")
+    symbol = str(body.get("symbol") or "BTC/USD").strip()[:20] or "BTC/USD"
+    strategy = str(body.get("strategy") or "momentum").strip().lower()[:50] or "momentum"
+    start_str = str(body.get("start_date") or "2024-01-01").strip()
+    end_str = str(body.get("end_date") or "2024-12-31").strip()
+    timeframe = str(body.get("timeframe") or "1d").strip().lower()
+    risk_level = str(body.get("risk_level") or "medium").strip().lower()
     try:
-        period_days = int(body.get("period_days") or 0)
+        capital = float(body.get("initial_capital", 10000) or 10000)
     except (TypeError, ValueError):
-        return jsonify({"error": "Neplatné obdobie."}), 400
-    timeframe = (body.get("timeframe") or "").strip().lower()
-    if agent_type not in ("user", "system"):
-        return jsonify({"error": "Neplatný agent_type."}), 400
-    if timeframe not in ("1h", "4h", "1d"):
-        return jsonify({"error": "Neplatný timeframe."}), 400
-    if period_days < 1 or period_days > 4000:
-        return jsonify({"error": "Obdobie mimo rozsah."}), 400
+        return jsonify({"error": "Capital must be between $100 and $1,000,000"}), 400
 
-    et = effective_tier(u)
-    if period_days > backtest_max_days_for_tier(et):
-        return jsonify(
-            {
-                "error": "Obdobie presahuje limit tarifu.",
-                "limits": backtest_limits_payload(et),
-            }
-        ), 403
-    if timeframe not in backtest_allowed_timeframes(et):
-        return jsonify(
-            {
-                "error": "Timeframe nie je v tvojom tarife.",
-                "limits": backtest_limits_payload(et),
-            }
-        ), 403
+    if timeframe not in {"1d", "4h", "1h"}:
+        return jsonify({"error": "Invalid timeframe"}), 400
+    if strategy not in {"momentum", "dca", "mean_reversion", "breakout", "grid"}:
+        return jsonify({"error": "Invalid strategy"}), 400
+    if risk_level not in {"low", "medium", "high"}:
+        return jsonify({"error": "Invalid risk level"}), 400
+    if capital < 100 or capital > 1_000_000:
+        return jsonify({"error": "Capital must be between $100 and $1,000,000"}), 400
 
-    uaid: int | None = None
-    taid: str | None = None
-    if agent_type == "user":
-        try:
-            uaid = int(agent_id)
-        except (TypeError, ValueError):
-            return jsonify({"error": "Neplatné agent_id pre user."}), 400
-    else:
-        taid = str(agent_id).strip()
-        if not taid:
-            return jsonify({"error": "Chýba agent_id."}), 400
+    try:
+        start = datetime.strptime(start_str[:10], "%Y-%m-%d").date()
+        end = datetime.strptime(end_str[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format"}), 400
+
+    delta_days = (end - start).days
+    if delta_days < 30:
+        return jsonify({"error": "Minimum 30 days required"}), 400
+    if delta_days > 730:
+        return jsonify({"error": "Maximum 2 years"}), 400
+
+    try:
+        result = run_real_backtest(symbol, strategy, start, end, capital, timeframe, risk_level)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
 
     eng = db.get_engine()
     if eng is None:
-        return jsonify({"error": "database unavailable"}), 503
-
-    with eng.connect() as conn:
-        cached = conn.execute(
-            text("""
-                SELECT result_json, created_at
-                FROM backtest_results
-                WHERE user_id = :uid
-                  AND period_days = :pd
-                  AND timeframe = :tf
-                  AND agent_type = :atype
-                  AND COALESCE(user_agent_id, -1) = COALESCE(:uaid, -1)
-                  AND COALESCE(trading_agent_id, '') = COALESCE(:taid, '')
-                ORDER BY created_at DESC
-                LIMIT 1
-            """),
-            {
-                "uid": int(u.id),
-                "pd": period_days,
-                "tf": timeframe,
-                "atype": agent_type,
-                "uaid": uaid,
-                "taid": taid,
-            },
-        ).mappings().first()
-        if cached and cached["created_at"] is not None:
-            cr = cached["created_at"]
-            if getattr(cr, "tzinfo", None) is None:
-                cr = cr.replace(tzinfo=timezone.utc)
-            if cr > datetime.now(timezone.utc) - timedelta(hours=1):
-                rj = cached["result_json"]
-                if isinstance(rj, str):
-                    try:
-                        rj = json.loads(rj)
-                    except json.JSONDecodeError:
-                        rj = {}
-                return jsonify(rj if isinstance(rj, dict) else {})
-
-    def _job() -> dict[str, Any]:
-        eng2 = db.get_engine()
-        if eng2 is None:
-            raise RuntimeError("database unavailable")
-        with eng2.begin() as c2:
-            sym, cfg = _backtest_load_agent_and_symbol(c2, int(u.id), agent_type, agent_id)
-        candles = fetch_candles(sym, timeframe, period_days)
-        if not candles:
-            raise ValueError("Žiadne sviečky (skontroluj symbol alebo Binance).")
-        return run_backtest(cfg, candles, timeframe)
-
-    try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            fut = pool.submit(_job)
-            try:
-                result = fut.result(timeout=30)
-            except concurrent.futures.TimeoutError:
-                return jsonify({"error": "Backtest trvá príliš dlho.", "timeout": True}), 408
-    except BinanceFetchError as exc:
-        log.warning("backtest binance: %s", exc)
-        return jsonify({"error": "Binance API dočasne nedostupné.", "detail": str(exc)}), 502
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(result)
 
     try:
         with eng.begin() as conn:
+            trading_agent_id = conn.execute(
+                text("SELECT id FROM trading_agents WHERE symbol = :sym ORDER BY id ASC LIMIT 1"),
+                {"sym": symbol},
+            ).scalar()
+            if trading_agent_id is None:
+                trading_agent_id = conn.execute(text("SELECT id FROM trading_agents ORDER BY id ASC LIMIT 1")).scalar()
             conn.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO backtest_results
-                        (user_id, agent_type, user_agent_id, trading_agent_id, period_days, timeframe, result_json)
+                        (user_id, agent_id, symbol, strategy, timeframe, start_date, end_date,
+                         initial_capital, final_capital, total_return, max_drawdown, win_rate,
+                         total_trades, winning_trades, sharpe_ratio, equity_curve, trades_log,
+                         agent_type, trading_agent_id, period_days, result_json)
                     VALUES
-                        (:uid, :atype, :uaid, :taid, :pd, :tf, CAST(:rj AS JSONB))
-                """),
+                        (:uid, :aid, :sym, :strat, :tf, :sd, :ed,
+                         :ic, :fc, :tr, :md, :wr,
+                         :tt, :wt, :sr, CAST(:ec AS JSONB), CAST(:tl AS JSONB),
+                         'system', :taid, :pd, CAST(:rj AS JSONB))
+                    """
+                ),
                 {
                     "uid": int(u.id),
-                    "atype": agent_type,
-                    "uaid": uaid,
-                    "taid": taid,
-                    "pd": period_days,
+                    "aid": int(trading_agent_id) if trading_agent_id is not None else None,
+                    "sym": symbol,
+                    "strat": strategy,
                     "tf": timeframe,
+                    "sd": start.isoformat(),
+                    "ed": end.isoformat(),
+                    "ic": capital,
+                    "fc": result["final_capital"],
+                    "tr": result["total_return"],
+                    "md": result["max_drawdown"],
+                    "wr": result["win_rate"],
+                    "tt": result["total_trades"],
+                    "wt": result["winning_trades"],
+                    "sr": result["sharpe_ratio"],
+                    "ec": json.dumps(result["equity_curve"]),
+                    "tl": json.dumps(result["trades_log"]),
+                    "taid": str(trading_agent_id) if trading_agent_id is not None else None,
+                    "pd": int(delta_days),
                     "rj": json.dumps(result),
                 },
             )
@@ -5337,6 +5963,87 @@ def _api_key_owner_db_user():
     return u
 
 
+def hash_key(raw_key: str) -> str:
+    return hashlib.sha256((raw_key or "").encode("utf-8")).hexdigest()
+
+
+def _serialize_api_key_row(row: dict[str, Any]) -> dict[str, Any]:
+    out = dict(row)
+    for k in ("last_used_at", "created_at"):
+        v = out.get(k)
+        if hasattr(v, "isoformat"):
+            out[k] = v.isoformat()
+    return out
+
+
+def api_key_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        raw_key = (request.headers.get("X-API-Key") or request.args.get("api_key") or "").strip()
+        if not raw_key:
+            return jsonify({"error": "API key required"}), 401
+
+        eng = db.get_engine()
+        if eng is None:
+            return jsonify({"error": "database unavailable"}), 503
+
+        key_hash = hash_key(raw_key)
+        with eng.begin() as conn:
+            row = conn.execute(
+                text(
+                    """
+                    SELECT
+                        ak.id,
+                        ak.user_id,
+                        ak.requests_today,
+                        ak.requests_total,
+                        ak.rate_limit,
+                        u.tier
+                    FROM api_keys ak
+                    JOIN users u ON u.id = ak.user_id
+                    WHERE ak.key_hash = :hash AND ak.is_active = TRUE
+                    LIMIT 1
+                    """
+                ),
+                {"hash": key_hash},
+            ).mappings().first()
+
+            if row is None:
+                return jsonify({"error": "Invalid or inactive API key"}), 401
+
+            tier = normalize_tier(str(row.get("tier") or TIER_BASIC))
+            if tier not in (TIER_ELITE, TIER_ADMIN):
+                return jsonify({"error": "Elite tier required"}), 403
+
+            requests_today = int(row.get("requests_today") or 0)
+            key_rate_limit = int(row.get("rate_limit") or 1000)
+            if requests_today >= key_rate_limit:
+                return jsonify({"error": "Daily rate limit exceeded"}), 429
+
+            conn.execute(
+                text(
+                    """
+                    UPDATE api_keys
+                    SET requests_today = COALESCE(requests_today, 0) + 1,
+                        requests_total = COALESCE(requests_total, 0) + 1,
+                        last_used_at = NOW()
+                    WHERE id = :kid
+                    """
+                ),
+                {"kid": int(row["id"])},
+            )
+
+        g.api_user_id = int(row["user_id"])
+        g.api_key_id = int(row["id"])
+        g.api_rate_limit = key_rate_limit
+        g.api_rate_remaining = max(0, key_rate_limit - requests_today - 1)
+        g.api_rate_reset = int(time.time()) + 86400
+        g.api_auth_ok = True
+        return f(*args, **kwargs)
+
+    return decorated
+
+
 def _v1_success(data: Any, extra: dict[str, Any] | None = None, status: int = 200):
     payload: dict[str, Any] = {"data": data, "timestamp": datetime.now(timezone.utc).isoformat()}
     if extra:
@@ -5380,6 +6087,106 @@ def _serialize_v1_user_agent(row: dict[str, Any]) -> dict[str, Any]:
         "config": cfg,
         "created_at": ca.isoformat() if hasattr(ca, "isoformat") else str(ca or ""),
     }
+
+
+@app.route("/api/developer/keys", methods=["GET"])
+@login_required
+def list_api_keys():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _api_key_owner_db_user()
+    if u is None:
+        return jsonify({"error": "Elite tier required"}), 403
+
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    with eng.connect() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT id, key_prefix, name, is_active, requests_today,
+                       requests_total, rate_limit, last_used_at, created_at
+                FROM api_keys
+                WHERE user_id = :uid
+                ORDER BY created_at DESC
+                """
+            ),
+            {"uid": int(u.id)},
+        ).mappings().all()
+    return jsonify([_serialize_api_key_row(dict(r)) for r in rows])
+
+
+@app.route("/api/developer/keys", methods=["POST"])
+@login_required
+def create_api_key():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _api_key_owner_db_user()
+    if u is None:
+        return jsonify({"error": "Elite tier required"}), 403
+
+    body = request.get_json(silent=True) or {}
+    name = str(body.get("name") or "Default").strip()[:100] or "Default"
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    raw_key = f"hms_{secrets.token_urlsafe(32)}"
+    prefix = raw_key[:8]
+    key_hash = hash_key(raw_key)
+    with eng.begin() as conn:
+        count = conn.execute(
+            text(
+                """
+                SELECT COUNT(*)::int AS c
+                FROM api_keys
+                WHERE user_id = :uid AND is_active = TRUE
+                """
+            ),
+            {"uid": int(u.id)},
+        ).scalar()
+        if int(count or 0) >= 3:
+            return jsonify({"error": "Maximum 3 API keys allowed"}), 400
+
+        conn.execute(
+            text(
+                """
+                INSERT INTO api_keys (user_id, key_hash, key_prefix, name)
+                VALUES (:uid, :hash, :prefix, :name)
+                """
+            ),
+            {"uid": int(u.id), "hash": key_hash, "prefix": prefix, "name": name},
+        )
+
+    return jsonify({"key": raw_key, "prefix": prefix, "name": name})
+
+
+@app.route("/api/developer/keys/<int:key_id>", methods=["DELETE"])
+@login_required
+def revoke_api_key(key_id: int):
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _api_key_owner_db_user()
+    if u is None:
+        return jsonify({"error": "Elite tier required"}), 403
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    with eng.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE api_keys
+                SET is_active = FALSE
+                WHERE id = :kid AND user_id = :uid
+                """
+            ),
+            {"kid": int(key_id), "uid": int(u.id)},
+        )
+    return jsonify({"status": "revoked"})
 
 
 @app.route("/api/keys", methods=["GET"])
@@ -5563,6 +6370,99 @@ def api_keys_usage(key_id: int):
                 "success_rate": float((stats or {}).get("success_rate") or 0.0),
                 "avg_response_time_ms": float((stats or {}).get("avg_response_time") or 0.0),
             },
+        }
+    )
+
+
+@app.route("/api/v1/agents", methods=["GET"])
+@api_key_required
+def public_api_agents():
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    uid = int(getattr(g, "api_user_id", 0))
+    with eng.connect() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT id, name, symbol, strategy_type AS strategy, status, created_at
+                FROM user_agents
+                WHERE user_id = :uid AND status != 'deleted'
+                ORDER BY created_at DESC
+                """
+            ),
+            {"uid": uid},
+        ).mappings().all()
+    out = []
+    for row in rows:
+        item = dict(row)
+        created_at = item.get("created_at")
+        if hasattr(created_at, "isoformat"):
+            item["created_at"] = created_at.isoformat()
+        out.append(item)
+    return jsonify({"agents": out})
+
+
+@app.route("/api/v1/agents/<int:agent_id>/trades", methods=["GET"])
+@api_key_required
+def public_api_trades(agent_id: int):
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    uid = int(getattr(g, "api_user_id", 0))
+    try:
+        limit = min(max(int(request.args.get("limit", 50)), 1), 200)
+    except (TypeError, ValueError):
+        limit = 50
+
+    with eng.connect() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT symbol, action AS side, price, quantity, pnl, timestamp AS created_at
+                FROM paper_trades
+                WHERE user_id = :uid AND user_agent_id = :aid
+                ORDER BY timestamp DESC
+                LIMIT :lim
+                """
+            ),
+            {"uid": uid, "aid": int(agent_id), "lim": int(limit)},
+        ).mappings().all()
+    out = []
+    for row in rows:
+        item = dict(row)
+        created_at = item.get("created_at")
+        if hasattr(created_at, "isoformat"):
+            item["created_at"] = created_at.isoformat()
+        out.append(item)
+    return jsonify({"trades": out})
+
+
+@app.route("/api/v1/pnl", methods=["GET"])
+@api_key_required
+def public_api_pnl():
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    uid = int(getattr(g, "api_user_id", 0))
+    with eng.connect() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT COALESCE(SUM(pnl), 0)::double precision AS total_pnl,
+                       COUNT(*)::int AS total_trades,
+                       COUNT(CASE WHEN pnl > 0 THEN 1 END)::int AS winning_trades
+                FROM paper_trades
+                WHERE user_id = :uid
+                """
+            ),
+            {"uid": uid},
+        ).mappings().first()
+    return jsonify(
+        {
+            "total_pnl": float((row or {}).get("total_pnl") or 0.0),
+            "total_trades": int((row or {}).get("total_trades") or 0),
+            "winning_trades": int((row or {}).get("winning_trades") or 0),
         }
     )
 
@@ -6405,6 +7305,583 @@ def api_admin_marketplace_reject():
         sess.rollback()
         log.exception("admin reject marketplace")
         return jsonify({"ok": False, "message": "Chyba."}), 500
+
+
+def _admin_tier_user():
+    if not _admin_ok():
+        return None
+    user = getattr(g, "db_user", None)
+    if user is None:
+        return None
+    return user
+
+
+@app.route("/api/admin/registry/agents", methods=["GET"])
+@admin_required
+def get_registry_agents():
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    redis_agents = queue_manager.get_all_agents()
+    with eng.connect() as conn:
+        db_agents = conn.execute(
+            text(
+                """
+                SELECT ar.*, u.username AS created_by_handle
+                FROM agent_registry ar
+                LEFT JOIN users u ON u.id = ar.created_by
+                ORDER BY ar.created_at DESC
+                """
+            )
+        ).mappings().all()
+    return jsonify(
+        {
+            "redis_agents": redis_agents,
+            "db_agents": [_serialize_row_dt(dict(row)) for row in db_agents],
+            "queue_stats": queue_manager.get_queue_stats(),
+            "swarms": DEFAULT_SWARMS,
+        }
+    )
+
+
+@app.route("/api/admin/registry/agents", methods=["POST"])
+@admin_required
+def create_registry_agent():
+    user = _admin_tier_user()
+    if user is None:
+        return jsonify({"error": "Registered admin account required"}), 403
+    data = request.get_json(silent=True) or {}
+    agent_id = str(data.get("agent_id") or f"agent-{str(uuid.uuid4())[:8]}").strip()[:50]
+    if not agent_id:
+        return jsonify({"error": "agent_id is required"}), 400
+    name = str(data.get("name") or "New Agent").strip()[:100] or "New Agent"
+    swarm_name = str(data.get("swarm_name") or "default").strip()[:50] or "default"
+    capabilities = data.get("capabilities")
+    if not isinstance(capabilities, list):
+        capabilities = []
+    config = data.get("config")
+    if not isinstance(config, dict):
+        config = {}
+    try:
+        priority = int(data.get("priority", 5))
+    except (TypeError, ValueError):
+        priority = 5
+    priority = max(1, min(priority, 10))
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO agent_registry (agent_id, name, swarm_name, capabilities, config, priority, created_by)
+                VALUES (:aid, :name, :swarm, CAST(:caps AS JSONB), CAST(:cfg AS JSONB), :pri, :uid)
+                ON CONFLICT (agent_id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    swarm_name = EXCLUDED.swarm_name,
+                    capabilities = EXCLUDED.capabilities,
+                    config = EXCLUDED.config,
+                    priority = EXCLUDED.priority,
+                    updated_at = NOW()
+                """
+            ),
+            {
+                "aid": agent_id,
+                "name": name,
+                "swarm": swarm_name,
+                "caps": json.dumps(capabilities),
+                "cfg": json.dumps(config),
+                "pri": priority,
+                "uid": int(user.id),
+            },
+        )
+    queue_manager.register_agent(agent_id, name, swarm_name, capabilities, config)
+    return jsonify({"status": "created", "agent_id": agent_id})
+
+
+@app.route("/api/admin/registry/agents/<agent_id>/status", methods=["POST"])
+@admin_required
+def update_registry_agent_status(agent_id: str):
+    status = str((request.get_json(silent=True) or {}).get("status") or "").strip().lower()
+    if status not in ("idle", "running", "paused", "error", "stopped"):
+        return jsonify({"error": "Invalid status"}), 400
+    queue_manager.update_agent_status(agent_id, status)
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.begin() as conn:
+        conn.execute(
+            text("UPDATE agent_registry SET status = :s, updated_at = NOW() WHERE agent_id = :aid"),
+            {"s": status, "aid": str(agent_id)},
+        )
+    return jsonify({"status": "updated"})
+
+
+@app.route("/api/admin/queue/stats", methods=["GET"])
+@admin_required
+def get_admin_queue_stats():
+    stats = queue_manager.get_queue_stats()
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.connect() as conn:
+        db_stats = conn.execute(
+            text(
+                """
+                SELECT status, COUNT(*)::int AS count
+                FROM task_queue
+                GROUP BY status
+                """
+            )
+        ).mappings().all()
+    stats["db_queue"] = {row["status"]: int(row["count"]) for row in db_stats}
+    return jsonify(stats)
+
+
+@app.route("/api/admin/queue/push", methods=["POST"])
+@admin_required
+def push_queue_task():
+    data = request.get_json(silent=True) or {}
+    task_type = str(data.get("task_type") or "generic").strip()[:50] or "generic"
+    payload = data.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
+    required = data.get("required_capabilities")
+    if not isinstance(required, list):
+        required = []
+    try:
+        priority = int(data.get("priority", 5))
+    except (TypeError, ValueError):
+        priority = 5
+    priority = max(1, min(priority, 10))
+    task_id = str(uuid.uuid4())
+    queue_manager.push_task(
+        task_type=task_type,
+        payload=payload,
+        priority=priority,
+        required_capabilities=required,
+        task_id=task_id,
+    )
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO task_queue (task_id, task_type, payload, status, priority, required_capabilities)
+                VALUES (:tid, :tt, CAST(:pl AS JSONB), 'pending', :pri, CAST(:req AS JSONB))
+                """
+            ),
+            {"tid": task_id, "tt": task_type, "pl": json.dumps(payload), "pri": priority, "req": json.dumps(required)},
+        )
+    return jsonify({"task_id": task_id, "status": "queued"})
+
+
+@app.route("/api/admin/queue/tasks", methods=["GET"])
+@admin_required
+def get_queue_tasks():
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.connect() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT *
+                FROM task_queue
+                ORDER BY priority DESC, created_at DESC
+                LIMIT 50
+                """
+            )
+        ).mappings().all()
+    return jsonify([_serialize_row_dt(dict(row)) for row in rows])
+
+
+@app.route("/api/admin/router/route", methods=["POST"])
+@admin_required
+def manual_route_task():
+    user = _admin_tier_user()
+    if user is None:
+        return jsonify({"error": "Registered admin account required"}), 403
+    data = request.get_json(silent=True) or {}
+    required = data.get("required_capabilities")
+    if not isinstance(required, list):
+        required = []
+    payload = data.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
+    try:
+        priority = int(data.get("priority", 5))
+    except (TypeError, ValueError):
+        priority = 5
+    decision = task_router.route_task(
+        task_type=str(data.get("task_type") or "manual"),
+        payload=payload,
+        priority=max(1, min(priority, 10)),
+        required_capabilities=required,
+        preferred_swarm=str(data.get("preferred_swarm") or "").strip() or None,
+    )
+    return jsonify(decision)
+
+
+@app.route("/api/admin/router/simulate", methods=["POST"])
+@admin_required
+def simulate_routing():
+    user = _admin_tier_user()
+    if user is None:
+        return jsonify({"error": "Registered admin account required"}), 403
+    data = request.get_json(silent=True) or {}
+    required = data.get("required_capabilities")
+    if not isinstance(required, list):
+        required = []
+    result = task_router.simulate_route(
+        task_type=str(data.get("task_type") or "generic"),
+        required_capabilities=required,
+    )
+    return jsonify(result)
+
+
+@app.route("/api/admin/router/log", methods=["GET"])
+@admin_required
+def get_routing_log():
+    user = _admin_tier_user()
+    if user is None:
+        return jsonify({"error": "Registered admin account required"}), 403
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+    return jsonify(task_router.get_routing_log(limit=max(1, min(limit, 50))))
+
+
+@app.route("/api/admin/system/health", methods=["GET"])
+@admin_required
+def get_admin_system_health():
+    eng = db.get_engine()
+    db_ok = False
+    if eng is not None:
+        try:
+            with eng.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            db_ok = True
+        except Exception:
+            db_ok = False
+    redis_ok = queue_manager.health_check()
+    queue_stats = queue_manager.get_queue_stats() if redis_ok else {"pending": 0}
+    if psutil is not None:
+        mem = psutil.virtual_memory()
+        cpu_percent = float(psutil.cpu_percent(interval=0.1))
+        memory_percent = float(mem.percent)
+        memory_used_gb = round(float(mem.used) / 1e9, 1)
+        memory_total_gb = round(float(mem.total) / 1e9, 1)
+    else:
+        cpu_percent = 0.0
+        memory_percent = 0.0
+        memory_used_gb = 0.0
+        memory_total_gb = 0.0
+    return jsonify(
+        {
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory_percent,
+            "memory_used_gb": memory_used_gb,
+            "memory_total_gb": memory_total_gb,
+            "psutil_available": bool(psutil is not None),
+            "redis": redis_ok,
+            "db": db_ok,
+            "queue_pending": int(queue_stats.get("pending", 0)),
+        }
+    )
+
+
+def check_rate_limit(user_id: int, action: str, max_per_minute: int = 10) -> bool:
+    key = f"hermes:ratelimit:{action}:{int(user_id)}:{int(time.time() // 60)}"
+    try:
+        count = int(queue_redis.incr(key))
+        queue_redis.expire(key, 120)
+        return count <= int(max_per_minute)
+    except Exception:
+        return True
+
+
+@app.route("/api/admin/swarm-builder/generate", methods=["POST"])
+@admin_required
+def generate_swarm_from_prompt():
+    user = _admin_tier_user()
+    if user is None:
+        return jsonify({"error": "Registered admin account required"}), 403
+    data = request.get_json(silent=True) or {}
+    prompt = str(data.get("prompt") or "").strip()[:2000]
+    if not prompt:
+        return jsonify({"error": "Prompt required"}), 400
+    if not check_rate_limit(int(user.id), "swarm-generate", 5):
+        return jsonify({"error": "Rate limit exceeded. Max 5 generates/minute."}), 429
+    api_key = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 503
+    if not ANTHROPIC_AVAILABLE:
+        return jsonify({"error": "Anthropic SDK not available"}), 503
+
+    ai_client = anthropic.Anthropic(api_key=api_key)
+    system = """You are a Swarm Architecture Designer for Hermes AI Trading Platform.
+
+When given a description of what a swarm should do, respond ONLY with valid JSON.
+No markdown, no explanation, just raw JSON.
+
+Available capabilities: trading, momentum, crypto, stocks, commodities, risk, portfolio,
+research, news, analysis, trends, social, marketing, content, seo, tiktok, reels,
+maintenance, monitoring, security, audit, backup, voice, support, routing, orchestration,
+planning, reporting, email, telegram, data, ml, backtest, sentiment
+
+JSON structure:
+{
+  "swarm_name": "snake_case_name",
+  "display_name": "Human Readable Name",
+  "icon": "emoji",
+  "description": "One sentence description",
+  "color": "oklch(0.72 0.18 295)",
+  "priority": 5,
+  "agents": [
+    {
+      "agent_id": "swarm_name-001",
+      "name": "Agent Display Name",
+      "agent_type": "worker|lead|orchestrator",
+      "capabilities": ["cap1", "cap2"],
+      "config": {
+        "temperature": 0.7,
+        "risk_level": "medium",
+        "description": "What this agent does"
+      }
+    }
+  ],
+  "task_queue_settings": {
+    "max_concurrent": 3,
+    "rate_limit_per_hour": 100
+  },
+  "memory_enabled": true,
+  "human_approval_required": false,
+  "cost_limit_daily": 10.0,
+  "estimated_monthly_cost": 15.0,
+  "reasoning": "Brief explanation of why these agents were chosen"
+}
+
+Generate 2-6 agents. First agent should be 'lead' type, rest 'worker'.
+Choose appropriate oklch color based on swarm purpose."""
+    message = ai_client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1500,
+        system=system,
+        messages=[{"role": "user", "content": f"Design a swarm for: {prompt}"}],
+    )
+    raw = ""
+    try:
+        parts: list[str] = []
+        for block in getattr(message, "content", []) or []:
+            if getattr(block, "type", None) == "text":
+                parts.append(str(getattr(block, "text", "") or ""))
+        raw = "".join(parts).strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        config = json.loads(raw)
+        return jsonify({"status": "ok", "config": config})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": f"Parse error: {e}", "raw": raw}), 500
+
+
+@app.route("/api/admin/swarm-builder/create", methods=["POST"])
+@admin_required
+def create_swarm_from_config():
+    user = _admin_tier_user()
+    if user is None:
+        return jsonify({"error": "Registered admin account required"}), 403
+    data = request.get_json(silent=True) or {}
+    config = data.get("config")
+    if not isinstance(config, dict):
+        return jsonify({"error": "Config required"}), 400
+    agents = config.get("agents")
+    if not isinstance(agents, list) or not agents:
+        return jsonify({"error": "Config must include agents"}), 400
+
+    swarm_name = str(config.get("swarm_name") or "custom").strip()[:50] or "custom"
+    try:
+        priority = int(config.get("priority", 5))
+    except (TypeError, ValueError):
+        priority = 5
+    priority = max(1, min(priority, 10))
+
+    swarm_metadata = {
+        "display_name": str(config.get("display_name") or swarm_name)[:100],
+        "icon": str(config.get("icon") or "🤖")[:8],
+        "color": str(config.get("color") or "oklch(0.72 0.18 295)")[:80],
+        "description": str(config.get("description") or "")[:500],
+        "memory_enabled": bool(config.get("memory_enabled", True)),
+        "human_approval_required": bool(config.get("human_approval_required", False)),
+        "estimated_monthly_cost": float(config.get("estimated_monthly_cost") or 0),
+        "task_queue_settings": config.get("task_queue_settings") if isinstance(config.get("task_queue_settings"), dict) else {},
+        "created_by": int(user.id),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source": "prompt_builder",
+    }
+
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    created_agents: list[str] = []
+    failed_agents: list[dict] = []
+
+    try:
+        from core.swarm_registry import swarm_registry as _registry
+    except Exception:  # noqa: BLE001
+        _registry = None
+
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        agent_id = str(agent.get("agent_id") or f"{swarm_name}-{str(uuid.uuid4())[:6]}").strip()[:50]
+        if not agent_id:
+            continue
+        name = str(agent.get("name") or "Agent").strip()[:100] or "Agent"
+        caps = agent.get("capabilities") if isinstance(agent.get("capabilities"), list) else []
+        cfg = agent.get("config") if isinstance(agent.get("config"), dict) else {}
+        agent_type = str(agent.get("agent_type") or "worker").strip().lower()
+        if agent_type not in ("worker", "lead", "orchestrator"):
+            agent_type = "worker"
+
+        agent_priority = priority
+        try:
+            agent_priority = int(agent.get("priority") or priority)
+        except (TypeError, ValueError):
+            pass
+        agent_priority = max(1, min(agent_priority, 10))
+
+        agent_metadata = {
+            **swarm_metadata,
+            "swarm_display_name": swarm_metadata["display_name"],
+            "agent_role": str(agent.get("role") or "")[:200] if agent.get("role") else None,
+        }
+
+        try:
+            with eng.begin() as conn:
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO agent_registry
+                            (agent_id, name, swarm_name, capabilities, config, agent_type,
+                             priority, metadata, created_by)
+                        VALUES (:aid, :name, :swarm, CAST(:caps AS JSONB), CAST(:cfg AS JSONB),
+                                :atype, :pri, CAST(:meta AS JSONB), :uid)
+                        ON CONFLICT (agent_id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            swarm_name = EXCLUDED.swarm_name,
+                            capabilities = EXCLUDED.capabilities,
+                            config = EXCLUDED.config,
+                            agent_type = EXCLUDED.agent_type,
+                            priority = EXCLUDED.priority,
+                            metadata = EXCLUDED.metadata,
+                            updated_at = NOW()
+                        """
+                    ),
+                    {
+                        "aid": agent_id,
+                        "name": name,
+                        "swarm": swarm_name,
+                        "caps": json.dumps(caps),
+                        "cfg": json.dumps(cfg),
+                        "atype": agent_type,
+                        "pri": agent_priority,
+                        "meta": json.dumps(agent_metadata),
+                        "uid": int(user.id),
+                    },
+                )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("swarm-builder create failed for %s: %s", agent_id, exc)
+            failed_agents.append({"agent_id": agent_id, "error": str(exc)[:200]})
+            continue
+
+        # Hot-cache via Swarm v2 registry (preferred), fall back to legacy queue_manager.
+        if _registry is not None:
+            try:
+                _registry.register_agent(
+                    agent_id=agent_id,
+                    name=name,
+                    swarm=swarm_name,
+                    capabilities=caps,
+                    agent_type=agent_type,
+                    priority=agent_priority,
+                    config=cfg,
+                    metadata=agent_metadata,
+                )
+            except Exception:  # noqa: BLE001
+                queue_manager.register_agent(agent_id, name, swarm_name, caps, cfg)
+        else:
+            queue_manager.register_agent(agent_id, name, swarm_name, caps, cfg)
+
+        created_agents.append(agent_id)
+
+    return jsonify(
+        {
+            "status": "created",
+            "swarm_name": swarm_name,
+            "swarm_metadata": swarm_metadata,
+            "agents_created": len(created_agents),
+            "agent_ids": created_agents,
+            "failed": failed_agents,
+        }
+    )
+
+
+@app.route("/api/admin/swarm-builder/swarms/<path:swarm_name>", methods=["DELETE"])
+@admin_required
+def delete_swarm(swarm_name: str):
+    """Hard-delete a custom swarm (all its agents) — admin only."""
+    user = _admin_tier_user()
+    if user is None:
+        return jsonify({"error": "Registered admin account required"}), 403
+    safe_swarm = str(swarm_name or "").strip()[:50]
+    if not safe_swarm:
+        return jsonify({"error": "Invalid swarm name"}), 400
+    # Protect built-in swarms from accidental delete.
+    PROTECTED = {"orchestra", "trading", "intelligence", "marketing", "maintenance"}
+    if safe_swarm in PROTECTED:
+        return jsonify({"error": f"Cannot delete protected swarm '{safe_swarm}'"}), 400
+
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    with eng.begin() as conn:
+        rows = conn.execute(
+            text("SELECT agent_id FROM agent_registry WHERE swarm_name = :s"),
+            {"s": safe_swarm},
+        ).all()
+        agent_ids = [str(r[0]) for r in rows]
+        conn.execute(
+            text("DELETE FROM agent_registry WHERE swarm_name = :s"),
+            {"s": safe_swarm},
+        )
+
+    # Best-effort Redis cleanup
+    try:
+        from core.swarm_registry import get_redis, REGISTRY_PREFIX, SWARM_PREFIX, HEARTBEAT_PREFIX
+        r = get_redis()
+        for aid in agent_ids:
+            try:
+                r.delete(f"{REGISTRY_PREFIX}{aid}")
+                r.delete(f"{HEARTBEAT_PREFIX}{aid}")
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            r.delete(f"{SWARM_PREFIX}{safe_swarm}")
+        except Exception:  # noqa: BLE001
+            pass
+    except Exception:  # noqa: BLE001
+        pass
+
+    return jsonify({
+        "status": "deleted",
+        "swarm_name": safe_swarm,
+        "agents_removed": len(agent_ids),
+    })
 
 
 @app.route("/api/admin/users", methods=["GET"])
@@ -7377,9 +8854,14 @@ def api_agent_builder_ai_summary():
 @app.route("/api/ai/builder", methods=["POST"])
 @login_required
 def ai_builder():
-    import anthropic  # noqa: PLC0415
     import re  # noqa: PLC0415
     import json as json_lib  # noqa: PLC0415
+
+    if not ANTHROPIC_AVAILABLE:
+        return jsonify({"error": "Anthropic SDK not available", "agentConfig": None}), 503
+    api_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured", "agentConfig": None}), 503
 
     data = request.get_json(silent=True) or {}
     messages = data.get("messages", [])
@@ -7397,7 +8879,7 @@ If you need more info, ask ONE clarifying question and omit <config>.
 Keep responses short (1-2 sentences). Be friendly and trading-focused."""
 
     try:
-        ai_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        ai_client = anthropic.Anthropic(api_key=api_key)
         response = ai_client.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=400,
@@ -7426,6 +8908,71 @@ Keep responses short (1-2 sentences). Be friendly and trading-focused."""
     except Exception as e:  # noqa: BLE001
         app.logger.error(f"AI builder error: {e}")
         return jsonify({"message": "I'm having trouble right now. Try describing your agent again!", "agentConfig": None})
+
+
+@app.route("/api/intelligence/feed", methods=["GET"])
+@login_required
+def intelligence_feed():
+    symbol = str(request.args.get("symbol") or "").strip()
+    report_type = str(request.args.get("type", "all") or "all").strip().lower()
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+    limit = max(1, min(limit, 50))
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    where = "WHERE 1=1"
+    params: dict[str, Any] = {"lim": limit}
+    if symbol:
+        where += " AND symbol = :sym"
+        params["sym"] = symbol
+    if report_type != "all":
+        where += " AND report_type = :rtype"
+        params["rtype"] = report_type
+    with eng.connect() as conn:
+        rows = conn.execute(
+            text(
+                f"""
+                SELECT id, report_type, symbol, title, sentiment, sentiment_score, source, tags, agent_id, created_at
+                FROM intelligence_reports
+                {where}
+                ORDER BY created_at DESC
+                LIMIT :lim
+                """
+            ),
+            params,
+        ).mappings().all()
+    return jsonify([_serialize_row_dt(dict(row)) for row in rows])
+
+
+@app.route("/api/intelligence/sentiment", methods=["GET"])
+@login_required
+def market_sentiment():
+    eng = db.get_engine()
+    if eng is None:
+        return jsonify({"error": "database unavailable"}), 503
+    with eng.connect() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT
+                    symbol,
+                    COUNT(*)::int AS total,
+                    ROUND(AVG(sentiment_score)::numeric, 3) AS avg_score,
+                    COUNT(CASE WHEN sentiment='positive' THEN 1 END)::int AS positive,
+                    COUNT(CASE WHEN sentiment='negative' THEN 1 END)::int AS negative,
+                    MAX(created_at) AS last_update
+                FROM intelligence_reports
+                WHERE created_at > NOW() - INTERVAL '24 hours'
+                    AND symbol IS NOT NULL
+                GROUP BY symbol
+                ORDER BY total DESC
+                """
+            )
+        ).mappings().all()
+    return jsonify([_serialize_row_dt(dict(row)) for row in rows])
 
 
 @app.route("/api/agents/pnl", methods=["GET"])
