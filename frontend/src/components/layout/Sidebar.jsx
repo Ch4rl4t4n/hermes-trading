@@ -12,7 +12,7 @@ const iconBase = {
 const navItems = [
   {
     key: "dashboard",
-    label: "Dashboard",
+    label: "Prehľad",
     icon: (
       <svg {...iconBase}>
         <rect x="3.5" y="3.5" width="7.5" height="7.5" />
@@ -24,7 +24,7 @@ const navItems = [
   },
   {
     key: "marketplace",
-    label: "Marketplace",
+    label: "Market",
     icon: (
       <svg {...iconBase}>
         <path d="M5 8h14l-1.4 10.2a1.2 1.2 0 0 1-1.2 1H7.6a1.2 1.2 0 0 1-1.2-1z" />
@@ -45,7 +45,7 @@ const navItems = [
   },
   {
     key: "leaderboard",
-    label: "Leaderboard",
+    label: "Rebríček",
     icon: (
       <svg {...iconBase}>
         <path d="M8 21h8" />
@@ -66,7 +66,7 @@ const navItems = [
   },
   {
     key: "settings",
-    label: "Settings",
+    label: "Nastavenia",
     icon: (
       <svg {...iconBase}>
         <circle cx="12" cy="12" r="3" />
@@ -76,7 +76,7 @@ const navItems = [
   },
   {
     key: "developer",
-    label: "Developer",
+    label: "Vývoj",
     icon: (
       <svg {...iconBase}>
         <rect x="4" y="4" width="16" height="16" rx="2.5" />
@@ -108,14 +108,17 @@ export default function Sidebar({ page, onNav, user, onLogout }) {
         HERMES
       </div>
 
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Bočná navigácia">
         {items.map((item) => {
           const active = page === item.key;
           return (
             <button
               key={item.key}
+              type="button"
               className={`sidebar-item ${active ? "active" : ""}`}
               onClick={() => onNav(item.key)}
+              aria-label={item.label}
+              aria-current={active ? "page" : undefined}
               style={{
                 borderLeft: active ? "2px solid oklch(0.72 0.18 295)" : "2px solid transparent",
                 background: active ? "oklch(0.72 0.18 295 / 0.15)" : "transparent",
@@ -130,7 +133,7 @@ export default function Sidebar({ page, onNav, user, onLogout }) {
                 if (!active) e.currentTarget.style.background = "transparent";
               }}
             >
-              <span style={{ width: 18, height: 18, display: "inline-flex", color: "currentColor" }}>{item.icon}</span>
+              <span style={{ width: 18, height: 18, display: "inline-flex", color: "currentColor" }} aria-hidden="true">{item.icon}</span>
               <span>{item.label}</span>
             </button>
           );
@@ -148,8 +151,8 @@ export default function Sidebar({ page, onNav, user, onLogout }) {
           </span>
         </div>
         <span className="pill pill-violet">{String(user?.tier || "basic").toUpperCase()}</span>
-        <button className="sidebar-logout" onClick={onLogout}>
-          Logout
+        <button type="button" className="sidebar-logout" onClick={onLogout} aria-label="Odhlásiť sa">
+          Odhlásiť
         </button>
       </div>
     </aside>

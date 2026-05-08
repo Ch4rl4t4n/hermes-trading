@@ -67,7 +67,7 @@ self.addEventListener("fetch", (event) => {
           if (cached) {
             return stampResponse(cached, { "x-hermes-offline-cached": "1", "x-hermes-cache-stale": "1" });
           }
-          return new Response(JSON.stringify({ offline: true, message: "You're offline — showing cached data", items: [] }), {
+          return new Response(JSON.stringify({ offline: true, message: "Ste offline — zobrazujem cachované dáta", items: [] }), {
             status: 200,
             headers: { "Content-Type": "application/json", "x-hermes-offline-cached": "1" },
           });

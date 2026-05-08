@@ -65,12 +65,12 @@ const icons = {
 };
 
 const tabs = [
-  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { key: "dashboard", label: "Prehľad", icon: "dashboard" },
   { key: "marketplace", label: "Market", icon: "market" },
-  { key: "builder", label: "Build", icon: "builder" },
-  { key: "leaderboard", label: "Ranks", icon: "ranks" },
-  { key: "developer", label: "Dev", icon: "developer" },
-  { key: "settings", label: "Settings", icon: "settings" },
+  { key: "builder", label: "Builder", icon: "builder" },
+  { key: "leaderboard", label: "Rebríček", icon: "ranks" },
+  { key: "developer", label: "Vývoj", icon: "developer" },
+  { key: "settings", label: "Nastavenia", icon: "settings" },
 ];
 
 export default function BottomNav({ page, onNav }) {
@@ -86,7 +86,7 @@ export default function BottomNav({ page, onNav }) {
           ? "settings"
           : "dashboard";
   return (
-    <nav className="bottom-nav" style={{ height: "calc(64px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <nav className="bottom-nav" aria-label="Spodná navigácia" style={{ height: "calc(64px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", height: 64 }}>
         {tabs.map((tab) => {
           const isActive = current === tab.icon;
@@ -94,10 +94,13 @@ export default function BottomNav({ page, onNav }) {
           return (
             <button
               key={tab.key}
+              type="button"
+              className={isActive ? "active" : ""}
               onClick={() => onNav(tab.key)}
+              aria-label={tab.label}
+              aria-current={isActive ? "page" : undefined}
               style={{
                 border: "none",
-                outline: "none",
                 background: "transparent",
                 color,
                 display: "grid",
@@ -106,7 +109,7 @@ export default function BottomNav({ page, onNav }) {
                 alignContent: "center",
               }}
             >
-              <span style={{ display: "inline-flex", color }}>{icons[tab.icon]}</span>
+              <span style={{ display: "inline-flex", color }} aria-hidden="true">{icons[tab.icon]}</span>
               <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>{tab.label}</span>
             </button>
           );

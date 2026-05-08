@@ -19,6 +19,9 @@ export default function Toast({ toast, onClose }) {
         zIndex: 999,
         animation: "toastSlideUp .24s ease-out",
       }}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
     >
       <div
         className="glass row gap-2"

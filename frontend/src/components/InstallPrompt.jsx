@@ -61,16 +61,16 @@ export default function InstallPrompt() {
   if (!isMobile || !deferredPrompt || dismissed) return null;
 
   return (
-    <div className="install-prompt" role="dialog" aria-label="Install Hermes">
-      <span className="install-prompt-text">Add Hermes to Home Screen</span>
+    <div className="install-prompt" role="dialog" aria-label="Nainštalovať Hermes">
+      <span className="install-prompt-text">Pridať Hermes na plochu</span>
       <div className="install-prompt-actions">
         <button type="button" className="install-prompt-btn" onClick={handleInstall}>
-          Install
+          Inštalovať
         </button>
         <button
           type="button"
           className="install-prompt-close"
-          aria-label="Dismiss install prompt"
+          aria-label="Zavrieť inštalačný prompt"
           onClick={() => {
             setDismissed(true);
             safeSetDismissed();

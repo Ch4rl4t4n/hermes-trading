@@ -124,7 +124,7 @@ async def get_current_user(
         await db.execute(
             text(
                 """
-                SELECT id, email, tier
+                SELECT id, email, tier, is_admin
                 FROM users
                 WHERE CAST(id AS text) = :user_id
                 LIMIT 1
@@ -136,4 +136,9 @@ async def get_current_user(
     if row is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    return {"id": int(row["id"]), "email": row["email"], "tier": row["tier"]}
+    return {
+        "id": int(row["id"]),
+        "email": row["email"],
+        "tier": row["tier"],
+        "is_admin": bool(row.get("is_admin")),
+    }

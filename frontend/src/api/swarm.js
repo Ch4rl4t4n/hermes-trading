@@ -64,6 +64,7 @@ export const swarmApi = {
   agent: (agentId) => v2Request("GET", `/swarm/agents/${encodeURIComponent(agentId)}`),
   queue: (limit = 25) => v2Request("GET", "/swarm/queue", { params: { limit } }),
   routingLog: (limit = 20) => v2Request("GET", "/swarm/routing-log", { params: { limit } }),
+  capabilities: () => v2Request("GET", "/swarm/capabilities"),
   simulate: ({ taskType, requiredCapabilities, preferredSwarm, priority }) =>
     v2Request("POST", "/swarm/route", {
       body: {
