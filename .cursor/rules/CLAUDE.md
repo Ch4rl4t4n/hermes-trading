@@ -46,6 +46,7 @@
 | `/root/hermes/core/swarm_actors.py` | ~170 | Dramatiq actors (`route_task`, `execute_task`, `orchestra_tick`) |
 | `/root/hermes/core/swarm_handlers.py` | ~240 | Domain handlers (market/report/alert/snapshot) |
 | `/root/hermes/core/intelligence_stalker.py` | ~NEW | Intelligence swarm worker (news/trends/summary reports) |
+| `/root/hermes/frontend/src/utils/appRoutes.js` | ~NEW | Mapovanie URL ↔ interný `page` kľúč (SPA história, PWA shortcuts) |
 | `/root/hermes/frontend/src/pages/AdminSwarm.jsx` | ~NEW | Admin War Room control center (swarm ops, queue, health, directory) |
 | `/root/hermes/frontend/src/components/adminswarm/*.jsx` | ~NEW | War Room modular panels (routing, sidebar, swarm grid, directory, drawer) |
 | `/root/hermes/frontend/src/hooks/useAdminSwarmRoutingInsights.js` | ~NEW | Routing insight computations (capability signals, confidence, checklist) |
