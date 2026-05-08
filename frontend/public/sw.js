@@ -1,4 +1,4 @@
-const CACHE_NAME = "hermes-v3";
+const CACHE_NAME = "hermes-v4";
 const API_CACHE_TTL_MS = 5 * 60 * 1000;
 const CORE_ASSETS = ["/", "/index.html"];
 const API_ENDPOINTS = ["/api/agents/pnl", "/api/marketplace/agents"];

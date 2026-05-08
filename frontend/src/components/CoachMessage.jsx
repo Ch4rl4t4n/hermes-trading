@@ -28,7 +28,7 @@ function safeSetString(key, value) {
   }
 }
 
-export default function CoachMessage({ totalPnl }) {
+export default function CoachMessage({ totalPnl, onReviewTrades }) {
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState(COACH_MESSAGES[0]);
 
@@ -86,7 +86,8 @@ export default function CoachMessage({ totalPnl }) {
           type="button"
           className="coach-btn coach-btn-accent"
           onClick={() => {
-            window.location.href = "/trades";
+            if (onReviewTrades) onReviewTrades();
+            else if (typeof window !== "undefined") window.location.href = "/";
           }}
         >
           📊 Review trades

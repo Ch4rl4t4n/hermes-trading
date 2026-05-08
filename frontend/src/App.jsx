@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { fetchAgents, pauseAgent } from "./api/agents";
 import { getCurrentUser, logout } from "./api/auth";
 import { getDashboardData } from "./api/dashboard";
@@ -8,6 +8,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import OfflineBanner from "./components/OfflineBanner";
 import Toast from "./components/ui/Toast";
 import { activeAlerts, demoAgents, demoUser, recentTrades as demoRecentTrades } from "./data/demoData";
+import { normalizeUrlPath, pageToPath, pathToPage, resolvePageForUser } from "./utils/appRoutes";
 import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
 import Login from "./pages/Login";
@@ -22,7 +23,9 @@ const AdminSwarm = lazy(() => import("./pages/AdminSwarm"));
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState(() =>
+    typeof window !== "undefined" ? pathToPage(window.location.pathname) : "dashboard",
+  );
   const [agents, setAgents] = useState(demoAgents);
   const [recentTrades, setRecentTrades] = useState(demoRecentTrades);
   const [alerts, setAlerts] = useState(activeAlerts);
@@ -52,6 +55,39 @@ function App() {
       });
   }, [user]);
 
+  const navigate = useCallback(
+    (nextRaw) => {
+      const next = resolvePageForUser(nextRaw, user);
+      setPage(next);
+      if (typeof window === "undefined") return;
+      const destPath = pageToPath(next);
+      if (normalizeUrlPath(window.location.pathname) !== normalizeUrlPath(destPath)) {
+        window.history.pushState({ hermesPage: next }, "", destPath);
+      }
+    },
+    [user],
+  );
+
+  useEffect(() => {
+    if (!user || loading) return;
+    const path = window.location.pathname;
+    const next = resolvePageForUser(pathToPage(path), user);
+    setPage(next);
+    const canon = pageToPath(next);
+    if (normalizeUrlPath(path) !== normalizeUrlPath(canon)) {
+      window.history.replaceState({ hermesPage: next }, "", canon);
+    }
+  }, [user, loading]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const onPopState = () => {
+      setPage(resolvePageForUser(pathToPage(window.location.pathname), user));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [user]);
+
   const onToast = (message) => setToast({ message, t: Date.now() });
 
   const onToggleAgent = async (agentId) => {
@@ -78,13 +114,13 @@ function App() {
     />
   );
   if (page === "marketplace") content = <Marketplace agents={[]} user={user} onToast={onToast} />;
-  if (page === "builder") content = <Builder user={user} onToast={onToast} onNav={setPage} />;
+  if (page === "builder") content = <Builder user={user} onToast={onToast} onNav={navigate} />;
   if (page === "leaderboard") content = <Leaderboard onToast={onToast} />;
   if (page === "backtest") content = <Backtest />;
   if (page === "settings") content = <Settings />;
   if (page === "developer") content = <Developer user={user} />;
-  if (page === "admin" && user?.isAdmin) content = <Admin onToast={onToast} onNav={setPage} />;
-  if (page === "admin-swarm" && user?.isAdmin) content = <AdminSwarm onToast={onToast} onNav={setPage} />;
+  if (page === "admin" && user?.isAdmin) content = <Admin onToast={onToast} onNav={navigate} />;
+  if (page === "admin-swarm" && user?.isAdmin) content = <AdminSwarm onToast={onToast} onNav={navigate} />;
 
   if (loading) {
     return (
@@ -103,7 +139,7 @@ function App() {
     <>
       <Layout
         page={page}
-        setPage={setPage}
+        setPage={navigate}
         user={user}
         onLogout={async () => {
           await logout();
@@ -113,7 +149,7 @@ function App() {
         <Suspense fallback={<div className="glass" style={{ padding: 12, margin: 16 }}>Načítavam stránku…</div>}>{content}</Suspense>
       </Layout>
       <OfflineBanner />
-      <CoachMessage totalPnl={totalPnl} />
+      <CoachMessage totalPnl={totalPnl} onReviewTrades={() => navigate("dashboard")} />
       <InstallPrompt />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
