@@ -19,7 +19,7 @@ else
 fi
 
 echo "[2/3] Frontend build"
-(cd "$ROOT/frontend" && npm run build)
+(cd "$ROOT/frontend" && "$ROOT/scripts/with_hermes_node.sh" npm run build)
 
 echo "[3/3] Swarm admin smoke"
 STRICT_CAPABILITIES="$STRICT_CAPABILITIES" "$ROOT/scripts/smoke_swarm_admin_flow.sh"

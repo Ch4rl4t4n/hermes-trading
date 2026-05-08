@@ -51,7 +51,9 @@
 | `/root/hermes/frontend/src/hooks/useAdminSwarmRoutingInsights.js` | ~NEW | Routing insight computations (capability signals, confidence, checklist) |
 | `/root/hermes/scripts/pre_release_checks.sh` | ~NEW | One-shot pre-release checks (node check + frontend build + swarm smoke) |
 | `/root/hermes/scripts/pre_release_checks_strict.sh` | ~NEW | Strict release gate wrapper (`STRICT_NODE=1`, `STRICT_CAPABILITIES=1`) |
-| `/root/hermes/scripts/check_frontend_node_version.sh` | ~NEW | Frontend Node.js runtime validator (`>=20.19.0`) |
+| `/root/hermes/scripts/check_frontend_node_version.sh` | ~NEW | Frontend Node.js runtime validator (`>=20.19.0`), výber cez `_node_pick.sh` |
+| `/root/hermes/scripts/_node_pick.sh` | ~NEW | Vyberie správny `node` keď PATH tiene IDE/Cursor binárku pred `/usr/bin/node` |
+| `/root/hermes/scripts/with_hermes_node.sh` | ~NEW | Spustí príkaz s PATH nastaveným na Hermes Node (pre `npm run build`) |
 | `/root/hermes/scripts/smoke_swarm_admin_flow.sh` | ~NEW | Admin swarm smoke (`status`, `route`, `dispatch`, optional `capabilities`) |
 | `/root/hermes/frontend/src/components/SwarmBuilderModal.jsx` | ~NEW | Prompt-based AI swarm generator modal + prompt library |
 | `/root/hermes/core/agent_builder.py` | ~NEW | Agent Builder backend (ALLOWED_SYMBOLS, ALLOWED_STRATEGIES, AI summary) |

@@ -115,6 +115,15 @@ cd /root/hermes
 scripts/check_frontend_node_version.sh
 ```
 
+Ak máš na serveri zároveň systémový Node (`/usr/bin/node` ≥ 20.19) a v PATH je starší Node z IDE (napr. Cursor), skript aj build pipeline používajú **`scripts/_node_pick.sh`** / **`scripts/with_hermes_node.sh`**, aby build išiel cez správnu verziu.
+
+Ručný build s konzistentným Node:
+
+```bash
+cd /root/hermes/frontend
+../scripts/with_hermes_node.sh npm run build
+```
+
 Ak skript vráti warning pre `20.18.x`, aktualizuj Node na `20.19+` (alebo `22.12+`) pred release buildom.
 
 ### 4.8 One-shot pre-release checks (build + smoke)
@@ -147,6 +156,12 @@ Node upgrade runbook:
 - `deploy/NODE_RUNTIME_UPGRADE.md`
 
 ## 5) Self-check
+
+### TLS / HTTPS diagnostika
+
+Ak `curl https://tvoja-app-domena/` hlási **certificate subject name mismatch**, HTTPS stále beží na servery (často vracia **200** s `-k`), ale **certifikát nepatrí k hostname** (zlý `server_name`, starý cert, alebo iný vhost zachytil port 443).
+
+Na opravu na serveri treba upraviť aktívny Nginx vhost pre danú doménu (`server_name`, `ssl_certificate` / Let's Encrypt) a potom `nginx -t && systemctl reload nginx`.
 
 - [ ] `/api/v2/*` odpovedá bez regresie Flask `/api/*`
 - [ ] Invalid/missing token vracia `401`
