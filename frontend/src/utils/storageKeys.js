@@ -7,4 +7,8 @@ export const STORAGE_KEYS = {
   THEME: "hermes_theme",
   AUTH_TOKEN: "hermes_token",
   AUTH_CSRF_TOKEN: "hermes_csrf_token",
+  CURRENCY: "hermes_currency_code",
+  ONBOARDING_SEEN: "hermes_onboarding_seen_v1",
+  ONBOARDING_PROGRESS_DISMISSED: "hermes_onb_progress_dismissed_at_v1",
+  DASHBOARD_ORDER: "hermes_dashboard_order_v1",
 };

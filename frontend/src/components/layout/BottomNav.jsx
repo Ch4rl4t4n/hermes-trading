@@ -62,20 +62,27 @@ const icons = {
       <path d="m14.5 14.5 1.5 1.5 2.5-2.5" />
     </svg>
   ),
+  discover: (
+    <svg {...iconBase}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9 9 5 1-1 5-5-1z" />
+    </svg>
+  ),
 };
 
 const tabs = [
-  { key: "dashboard", label: "Prehľad", icon: "dashboard" },
+  { key: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { key: "discover", label: "Discover", icon: "discover" },
   { key: "marketplace", label: "Market", icon: "market" },
-  { key: "builder", label: "Builder", icon: "builder" },
-  { key: "leaderboard", label: "Rebríček", icon: "ranks" },
-  { key: "developer", label: "Vývoj", icon: "developer" },
-  { key: "settings", label: "Nastavenia", icon: "settings" },
+  { key: "leaderboard", label: "Leaderboard", icon: "ranks" },
+  { key: "settings", label: "Settings", icon: "settings" },
 ];
 
 export default function BottomNav({ page, onNav }) {
   const current = page === "marketplace"
     ? "market"
+    : page === "discover"
+      ? "discover"
     : page === "builder"
       ? "builder"
       : page === "leaderboard"
@@ -86,7 +93,7 @@ export default function BottomNav({ page, onNav }) {
           ? "settings"
           : "dashboard";
   return (
-    <nav className="bottom-nav" aria-label="Spodná navigácia" style={{ height: "calc(64px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <nav className="bottom-nav" aria-label="Bottom navigation" style={{ height: "calc(64px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="bottom-nav-inner">
         {tabs.map((tab) => {
           const isActive = current === tab.icon;

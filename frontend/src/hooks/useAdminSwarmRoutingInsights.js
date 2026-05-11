@@ -84,13 +84,13 @@ export default function useAdminSwarmRoutingInsights({
     return routingCaps
       .map((cap) => {
         const row = capabilityByName.get(cap);
-        if (!row) return { cap, level: "unknown", message: "Capability nie je v registri." };
+        if (!row) return { cap, level: "unknown", message: "Capability not in registry." };
         const idle = Number(row.idle_agents || 0);
         const running = Number(row.running_agents || 0);
         const active = Number(row.active_tasks || 0);
-        if (idle <= 0) return { cap, level: "high", message: "Žiadna idle kapacita." };
-        if (running > 0 && active > running) return { cap, level: "medium", message: "Load je vyšší než počet bežiacich agentov." };
-        return { cap, level: "ok", message: "Kapacita je dostupná." };
+        if (idle <= 0) return { cap, level: "high", message: "No idle capacity." };
+        if (running > 0 && active > running) return { cap, level: "medium", message: "Load exceeds running agents." };
+        return { cap, level: "ok", message: "Capacity available." };
       })
       .filter((item) => item.level !== "ok");
   }, [capabilityByName, routingCaps]);
@@ -99,13 +99,13 @@ export default function useAdminSwarmRoutingInsights({
     return simulateCaps
       .map((cap) => {
         const row = capabilityByName.get(cap);
-        if (!row) return { cap, level: "unknown", message: "Capability nie je v registri." };
+        if (!row) return { cap, level: "unknown", message: "Capability not in registry." };
         const idle = Number(row.idle_agents || 0);
         const running = Number(row.running_agents || 0);
         const active = Number(row.active_tasks || 0);
-        if (idle <= 0) return { cap, level: "high", message: "Žiadna idle kapacita." };
-        if (running > 0 && active > running) return { cap, level: "medium", message: "Load je vyšší než počet bežiacich agentov." };
-        return { cap, level: "ok", message: "Kapacita je dostupná." };
+        if (idle <= 0) return { cap, level: "high", message: "No idle capacity." };
+        if (running > 0 && active > running) return { cap, level: "medium", message: "Load exceeds running agents." };
+        return { cap, level: "ok", message: "Capacity available." };
       })
       .filter((item) => item.level !== "ok");
   }, [capabilityByName, simulateCaps]);
@@ -115,11 +115,11 @@ export default function useAdminSwarmRoutingInsights({
     const medium = routingCapabilityAlerts.filter((item) => item.level === "medium").length;
     const selected = routingCaps.length;
     const score = Number(suggestedRoutingSwarm?.score || 0);
-    if (selected === 0) return { level: "low", label: "nízka", reason: "Nie sú zvolené capability." };
-    if (high > 0) return { level: "low", label: "nízka", reason: "Aspoň jedna capability je bez idle kapacity." };
-    if (score >= 10 && medium === 0) return { level: "high", label: "vysoká", reason: "Silný capability match a dostupná kapacita." };
-    if (score >= 5) return { level: "medium", label: "stredná", reason: "Čiastočný match alebo zvýšený load." };
-    return { level: "low", label: "nízka", reason: "Slabý match medzi capability a dostupnými swarmami." };
+    if (selected === 0) return { level: "low", label: "low", reason: "No capabilities selected." };
+    if (high > 0) return { level: "low", label: "low", reason: "At least one capability has no idle capacity." };
+    if (score >= 10 && medium === 0) return { level: "high", label: "high", reason: "Strong capability match with available capacity." };
+    if (score >= 5) return { level: "medium", label: "medium", reason: "Partial match or elevated load." };
+    return { level: "low", label: "low", reason: "Weak match between capabilities and available swarms." };
   }, [routingCapabilityAlerts, routingCaps.length, suggestedRoutingSwarm?.score]);
 
   const simulateConfidence = useMemo(() => {
@@ -127,11 +127,11 @@ export default function useAdminSwarmRoutingInsights({
     const medium = simulateCapabilityAlerts.filter((item) => item.level === "medium").length;
     const selected = simulateCaps.length;
     const score = Number(suggestedSimulateSwarm?.score || 0);
-    if (selected === 0) return { level: "low", label: "nízka", reason: "Nie sú zvolené capability." };
-    if (high > 0) return { level: "low", label: "nízka", reason: "Aspoň jedna capability je bez idle kapacity." };
-    if (score >= 10 && medium === 0) return { level: "high", label: "vysoká", reason: "Silný capability match a dostupná kapacita." };
-    if (score >= 5) return { level: "medium", label: "stredná", reason: "Čiastočný match alebo zvýšený load." };
-    return { level: "low", label: "nízka", reason: "Slabý match medzi capability a dostupnými swarmami." };
+    if (selected === 0) return { level: "low", label: "low", reason: "No capabilities selected." };
+    if (high > 0) return { level: "low", label: "low", reason: "At least one capability has no idle capacity." };
+    if (score >= 10 && medium === 0) return { level: "high", label: "high", reason: "Strong capability match with available capacity." };
+    if (score >= 5) return { level: "medium", label: "medium", reason: "Partial match or elevated load." };
+    return { level: "low", label: "low", reason: "Weak match between capabilities and available swarms." };
   }, [simulateCapabilityAlerts, simulateCaps.length, suggestedSimulateSwarm?.score]);
 
   const routingChecklist = useMemo(() => {
@@ -142,25 +142,25 @@ export default function useAdminSwarmRoutingInsights({
       {
         key: "caps",
         ok: selected > 0,
-        label: "Capability výber",
-        detail: selected > 0 ? `${selected} zvolené` : "žiadne capability",
+        label: "Capability selection",
+        detail: selected > 0 ? `${selected} selected` : "no capabilities",
       },
       {
         key: "capacity",
         ok: highAlerts === 0,
-        label: "Idle kapacita",
-        detail: highAlerts === 0 ? "bez kritických alertov" : `${highAlerts} kritických alertov`,
+        label: "Idle capacity",
+        detail: highAlerts === 0 ? "no critical alerts" : `${highAlerts} critical alerts`,
       },
       {
         key: "swarm",
         ok: Boolean(preferred),
-        label: "Cieľový swarm",
-        detail: preferred || "auto výber bez návrhu",
+        label: "Target swarm",
+        detail: preferred || "auto pick without suggestion",
       },
       {
         key: "confidence",
         ok: routingConfidence.level !== "low",
-        label: "Istota routingu",
+        label: "Routing confidence",
         detail: routingConfidence.label,
       },
     ];

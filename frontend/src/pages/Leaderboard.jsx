@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import client from "../api/client";
 import SparkLine from "../components/ui/SparkLine";
+import { useCurrency } from "../contexts/CurrencyContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 function normalizeLeaderboardEntry(raw) {
@@ -39,6 +40,7 @@ function topRankStyle(rank) {
 }
 
 export default function Leaderboard({ onToast }) {
+  const { format } = useCurrency();
   const { isDesktop } = useBreakpoint();
   const [tab, setTab] = useState("weekly");
   const [loading, setLoading] = useState(false);
@@ -163,20 +165,66 @@ export default function Leaderboard({ onToast }) {
       }
     : null;
 
+  const topThree = useMemo(() => sorted.slice(0, 3), [sorted]);
+  const tableRest = useMemo(() => sorted.slice(3), [sorted]);
+
   return (
-    <section className="page-content">
-      <div className="lb-period-tabs row gap-2" style={{ marginBottom: 14 }}>
-        {tabs.map((tabItem) => (
-          <button
-            key={tabItem.id}
-            className={`lb-tab ${tabItem.id === tab ? "active" : ""}`}
-            style={{ border: "none" }}
-            onClick={() => setTab(tabItem.id)}
-          >
-            {tabItem.label}
-          </button>
-        ))}
-      </div>
+    <section className="page-content hermes-leaderboard">
+      <header className="hermes-page-head">
+        <div>
+          <h1 className="hermes-page-title">Leaderboard</h1>
+          <p className="hermes-page-lead">Best-performing AI agents for the selected period · compare performance and follow subscribers</p>
+        </div>
+        <nav className="hermes-tabs" role="tablist" aria-label="Leaderboard period">
+          {tabs.map((tabItem) => (
+            <button
+              key={tabItem.id}
+              role="tab"
+              aria-selected={tabItem.id === tab}
+              className={`hermes-tab${tabItem.id === tab ? " is-active" : ""}`}
+              onClick={() => setTab(tabItem.id)}
+            >
+              {tabItem.label}
+            </button>
+          ))}
+        </nav>
+      </header>
+
+      {topThree.length >= 3 && tab !== "following" ? (
+        <div className="hermes-podium" aria-label="Top 3">
+          {[topThree[1], topThree[0], topThree[2]].map((entry, slotIdx) => {
+            const realRank = entry.rank;
+            const variant = realRank === 1 ? "is-gold" : realRank === 2 ? "is-silver" : "is-bronze";
+            const tall = realRank === 1 ? "is-tall" : "";
+            return (
+              <button
+                type="button"
+                key={`podium-${entry.agentId || slotIdx}`}
+                className={`hermes-podium-card ${variant} ${tall}`}
+                onClick={() => setActiveAgent(entry)}
+              >
+                <span className="hermes-podium-rank">#{realRank}</span>
+                <span className="hermes-podium-medal" aria-hidden="true">
+                  {realRank === 1 ? "🥇" : realRank === 2 ? "🥈" : "🥉"}
+                </span>
+                <strong className="hermes-podium-name">{entry.name}</strong>
+                <span className="text-3 fs-12">{entry.symbol} · {entry.strategy}</span>
+                <span className={`hermes-podium-pnl ${entry.pnlPct >= 0 ? "is-pos" : "is-neg"}`}>
+                  {entry.pnlPct >= 0 ? "+" : ""}{Number(entry.pnlPct).toFixed(2)}%
+                </span>
+                <div className="hermes-podium-spark">
+                  <SparkLine points={generateSparkline(entry, 30)} />
+                </div>
+                <div className="hermes-podium-meta">
+                  <span>Win {Number(entry.winRate).toFixed(0)}%</span>
+                  <span>·</span>
+                  <span>{entry.subscribers} followers</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="glass row gap-2" style={{ padding: 12, marginBottom: 10 }}>
@@ -192,7 +240,7 @@ export default function Leaderboard({ onToast }) {
       ) : null}
 
       {isDesktop ? (
-        <div className="glass lb-table-wrap">
+        <div className="glass lb-table-wrap hermes-lb-table-wrap">
           <table className="leaderboard-table lb-table-fixed">
             <colgroup>
               <col style={{ width: 50 }} />
@@ -217,7 +265,7 @@ export default function Leaderboard({ onToast }) {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((entry) => {
+              {(topThree.length >= 3 && tab !== "following" ? tableRest : sorted).map((entry) => {
                 const style = topRankStyle(entry.rank);
                 const mine = Boolean(subscribedMap[entry.agentId]);
                 return (
@@ -291,7 +339,7 @@ export default function Leaderboard({ onToast }) {
                   {entry.pnlPct >= 0 ? "+" : ""}
                   {Number(entry.pnlPct).toFixed(2)}%
                 </span>
-                <span className="mono text-2">{`${Number(entry.pnlUsd).toFixed(2)}$`}</span>
+                <span className="mono text-2">{format(entry.pnlUsd)}</span>
               </div>
               <div className="row between fs-12" style={{ marginTop: 8 }}>
                 <span className="text-2">{`Win rate ${Number(entry.winRate).toFixed(1)}%`}</span>
@@ -318,7 +366,7 @@ export default function Leaderboard({ onToast }) {
               <SparkLine points={selectedAgent.spark} />
             </div>
             <div className="lb-side-stats">
-              <div><span>Total PnL</span><strong>{`${selectedAgent.pnlUsd >= 0 ? "+" : ""}$${Number(selectedAgent.pnlUsd).toFixed(2)}`}</strong></div>
+              <div><span>Total PnL</span><strong>{format(selectedAgent.pnlUsd, { signed: true })}</strong></div>
               <div><span>Win rate</span><strong>{`${Number(selectedAgent.winRate).toFixed(1)}%`}</strong></div>
               <div><span>Trades</span><strong>{selectedAgent.trades}</strong></div>
               <div><span>Subscribers</span><strong>{selectedAgent.subscribers}</strong></div>
@@ -342,7 +390,7 @@ export default function Leaderboard({ onToast }) {
                 return (
                   <div key={idx} className="row between fs-12" style={{ padding: "7px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                     <span>{`${selectedAgent.symbol} · ${idx % 2 ? "SELL" : "BUY"}`}</span>
-                    <span style={{ color: pnl >= 0 ? "var(--color-green)" : "var(--color-red)" }}>{`${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}`}</span>
+                    <span style={{ color: pnl >= 0 ? "var(--color-green)" : "var(--color-red)" }}>{format(pnl, { signed: true })}</span>
                   </div>
                 );
               })}

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import client from "../api/client";
+import { useCurrency } from "../contexts/CurrencyContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 const SYMBOL_OPTIONS = ["BTC/USD", "ETH/USD", "SOL/USD", "NVDA", "AAPL", "MSFT", "TSLA", "XAU/USD", "OIL/USD"];
 const STRATEGY_OPTIONS = ["momentum", "dca", "mean_reversion", "breakout", "grid"];
 
 function EquityChart({ points, initialCapital, startDate, endDate }) {
+  const { format } = useCurrency();
   const [hoverIndex, setHoverIndex] = useState(null);
   if (!Array.isArray(points) || points.length < 2) return null;
   const width = 960;
@@ -64,7 +66,7 @@ function EquityChart({ points, initialCapital, startDate, endDate }) {
       {active ? (
         <div className="backtest-tooltip" style={{ left: `${(active.x / width) * 100}%` }}>
           <div>Point #{active.index + 1}</div>
-          <strong>${Number(active.value || 0).toLocaleString()}</strong>
+          <strong>{format(active.value || 0, { decimals: 0 })}</strong>
         </div>
       ) : null}
       <div className="row between text-3 fs-12" style={{ marginTop: 8 }}>
@@ -76,6 +78,7 @@ function EquityChart({ points, initialCapital, startDate, endDate }) {
 }
 
 export default function Backtest() {
+  const { format } = useCurrency();
   const { isDesktop } = useBreakpoint();
   const [form, setForm] = useState({
     symbol: "BTC/USD",
@@ -196,19 +199,59 @@ export default function Backtest() {
     if (!result) return [];
     return [
       { label: "Total Return", value: `${result.total_return >= 0 ? "+" : ""}${Number(result.total_return || 0).toFixed(2)}%`, tone: Number(result.total_return || 0) >= 0 ? "ok" : "bad" },
-      { label: "Final Capital", value: `$${Number(result.final_capital || 0).toLocaleString()}` },
+      { label: "Final Capital", value: format(result.final_capital || 0, { decimals: 0 }) },
       { label: "Max Drawdown", value: `${Number(result.max_drawdown || 0).toFixed(2)}%` },
       { label: "Win Rate", value: `${Number(result.win_rate || 0).toFixed(2)}%` },
       { label: "Total Trades", value: String(Number(result.total_trades || 0)) },
       { label: "Sharpe Ratio", value: Number(result.sharpe_ratio || 0).toFixed(3) },
     ];
-  }, [result]);
+  }, [result, format]);
+
+  const applyPreset = (id) => {
+    const today = new Date();
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    if (id === "7d") {
+      const s = new Date(today); s.setDate(s.getDate() - 7);
+      setForm((p) => ({ ...p, startDate: fmt(s), endDate: fmt(today) }));
+    } else if (id === "30d") {
+      const s = new Date(today); s.setDate(s.getDate() - 30);
+      setForm((p) => ({ ...p, startDate: fmt(s), endDate: fmt(today) }));
+    } else if (id === "ytd") {
+      setForm((p) => ({ ...p, startDate: `${today.getFullYear()}-01-01`, endDate: fmt(today) }));
+    } else if (id === "1y") {
+      const s = new Date(today); s.setFullYear(s.getFullYear() - 1);
+      setForm((p) => ({ ...p, startDate: fmt(s), endDate: fmt(today) }));
+    } else if (id === "all") {
+      setForm((p) => ({ ...p, startDate: "2020-01-01", endDate: fmt(today) }));
+    }
+  };
 
   return (
-    <section className="page-content">
+    <section className="page-content hermes-backtest">
+      <header className="hermes-page-head">
+        <div>
+          <h1 className="hermes-page-title">Backtesting</h1>
+          <p className="hermes-page-lead">Test your strategy on historical data before going paper or live</p>
+        </div>
+      </header>
+
+      <div className="hermes-backtest-presets" role="tablist" aria-label="Time range presets">
+        {[
+          { id: "7d", label: "LAST 7 DAYS" },
+          { id: "30d", label: "LAST 30 DAYS" },
+          { id: "ytd", label: "YTD" },
+          { id: "1y", label: "1 YEAR" },
+          { id: "all", label: "ALL" },
+        ].map((p) => (
+          <button key={p.id} type="button" className="hermes-filter-pill" onClick={() => applyPreset(p.id)}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <div className={isDesktop ? "row" : "col"} style={{ gap: 16, alignItems: "stretch" }}>
-        <article className="glass col gap-3" style={{ padding: 16, flex: isDesktop ? "0 0 380px" : "1 1 auto" }}>
-          <h3>Backtest Configuration</h3>
+        <article className="glass col gap-3 hermes-backtest-config" style={{ padding: 16, flex: isDesktop ? "0 0 380px" : "1 1 auto" }}>
+          <h3 style={{ margin: 0 }}>Backtest configuration</h3>
           <label className="col gap-2 fs-12 text-2">
             Symbol
             <select className="bt-field" value={form.symbol} onChange={(e) => update("symbol", e.target.value)}>
@@ -273,13 +316,12 @@ export default function Backtest() {
             </div>
           </div>
           <button
-            className="btn"
+            className="hermes-cta-pill is-block"
             type="button"
-            style={{ width: "100%", background: "oklch(0.72 0.18 295 / .9)", borderColor: "oklch(0.72 0.18 295 / .9)", color: "#111827" }}
             onClick={runBacktest}
             disabled={running}
           >
-            {running ? "Running simulation..." : "▶ Run Backtest"}
+            {running ? "Running simulation…" : "▶ Run backtest"}
           </button>
           {running ? (
             <div className="row gap-2">
@@ -336,10 +378,9 @@ export default function Backtest() {
                         <tr key={`${trade.i}-${idx}`} className={Number(trade.pnl || 0) >= 0 ? "" : "bt-loss-row"}>
                           <td>{idx + 1}</td>
                           <td>{trade.side}</td>
-                          <td>${Number(trade.price || 0).toFixed(2)}</td>
+                          <td>{format(trade.price || 0, { decimals: 2 })}</td>
                           <td className={Number(trade.pnl || 0) >= 0 ? "backtest-ok" : "backtest-bad"}>
-                            {Number(trade.pnl || 0) >= 0 ? "+" : ""}
-                            {Number(trade.pnl || 0).toFixed(2)}
+                            {format(trade.pnl || 0, { signed: true, decimals: 2 })}
                           </td>
                           <td className={Number(trade.return_pct || 0) >= 0 ? "backtest-ok" : "backtest-bad"}>
                             {Number(trade.return_pct || 0) >= 0 ? "+" : ""}

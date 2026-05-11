@@ -1,5 +1,4 @@
 import client from "./client";
-import { demoUser } from "../data/demoData";
 import { STORAGE_KEYS } from "../utils/storageKeys";
 
 function normalizeUser(payload) {
@@ -11,6 +10,7 @@ function normalizeUser(payload) {
     name: payload.username || payload.name || payload.email || "Trader",
     tier: payload.tier || "basic",
     isAdmin: Boolean(payload.is_admin || payload.role === "admin"),
+    isOwner: Boolean(payload.is_owner),
     notifications: payload.notifications || 0,
   };
 }
@@ -42,7 +42,8 @@ export async function login(payload) {
 }
 
 export async function loginWithGoogle() {
-  window.location.href = "/login/google";
+  // Full-page navigation — must hit Flask (not SPA index.html fallback).
+  window.location.href = "/api/auth/google/start";
   return { data: true, error: null };
 }
 
@@ -61,35 +62,91 @@ export async function logout() {
   }
 }
 
+function userFromStatusPayload(data) {
+  if (!data?.authenticated) return null;
+  return normalizeUser({
+    ...data.user,
+    username: data.username,
+    email: data.email,
+    tier: data.tier,
+    is_admin: data.is_admin,
+    is_owner: data.is_owner,
+    role: data.role,
+  });
+}
+
 export async function getCurrentUser() {
+  let token = null;
+  try {
+    token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+  } catch {
+    token = null;
+  }
+
+  /** Bez Bearer tokenu je ``/api/auth/me`` vždy 401 — šum v konzole; stačí ``/status``. */
+  if (!token) {
+    try {
+      const statusRes = await client.get("/api/auth/status");
+      const u = userFromStatusPayload(statusRes?.data);
+      return { data: u, error: null };
+    } catch {
+      return { data: null, error: "auth_unavailable" };
+    }
+  }
+
   try {
     const res = await client.get("/api/auth/me");
     return { data: normalizeUser(res.data), error: null };
   } catch {
     try {
       const statusRes = await client.get("/api/auth/status");
-      if (statusRes?.data?.authenticated) {
-        return { data: normalizeUser({
-          ...statusRes.data.user,
-          username: statusRes.data.username,
-          email: statusRes.data.email,
-          tier: statusRes.data.tier,
-          is_admin: statusRes.data.is_admin,
-          role: statusRes.data.role,
-        }), error: null };
-      }
-      return { data: null, error: null };
+      const u = userFromStatusPayload(statusRes?.data);
+      return { data: u, error: null };
     } catch {
       return { data: null, error: "auth_unavailable" };
     }
   }
 }
 
+/**
+ * Registrácia DB účtu. Pri úspechu s automatickým prihlásením uloží token ako login.
+ * Pri povolenom email verify vráti needsVerification + message (success bez session).
+ */
 export async function register(payload) {
   try {
-    const { data } = await client.post("/api/auth/register", payload);
-    return { data, error: null };
-  } catch {
-    return { data: { user: demoUser }, error: "register_failed" };
+    const res = await client.post("/api/auth/register", {
+      email: payload?.email,
+      username: payload?.username,
+      password: payload?.password,
+      confirm_password: payload?.confirm_password ?? payload?.confirmPassword,
+      ref_code: payload?.ref_code,
+      tos_accepted: payload?.tos_accepted ?? true,
+    });
+    const d = res.data || {};
+    if (d.requires_email_verification) {
+      return {
+        data: null,
+        needsVerification: true,
+        message: d.message || "Check your email to verify your account, then sign in.",
+        error: null,
+      };
+    }
+    if (d.success && d.token) {
+      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, d.token);
+      if (d.csrf_token) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_CSRF_TOKEN, d.csrf_token);
+      }
+      return { data: normalizeUser(d.user), error: null };
+    }
+    return {
+      data: null,
+      error: d.message || d.error || "Registration failed",
+    };
+  } catch (err) {
+    const msg =
+      err?.response?.data?.error ||
+      err?.response?.data?.message ||
+      (err?.response?.status === 503 ? "Registration is not available on this server." : "Registration failed");
+    return { data: null, error: msg };
   }
 }

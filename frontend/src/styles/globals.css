@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @keyframes float{0%,to{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes aurora{
   0%{opacity:.5;transform:scale(1) translateY(0)}
@@ -85,7 +85,7 @@
   --modal-surface:var(--bg-card);
   --toast-shadow:var(--shadow-card);
 }
-html,body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text-primary);min-height:100vh}
+html,body{font-family:'Plus Jakarta Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-feature-settings:"ss01","cv11";letter-spacing:-0.01em;color:var(--text-primary);min-height:100vh}
 body{overflow-x:hidden;transition:color .3s ease}
 [class*="card"],.glass-card,.card{transition:background-color .3s ease,border-color .3s ease,box-shadow .3s ease}
 .theme-toggle-btn{
@@ -1464,11 +1464,12 @@ select.admin-tier-inline-select{
 .watcher-tab-btn.active{border-color:#60a5fa;color:#93c5fd;background:rgba(59,130,246,.12)}
 .watcher-tab{display:none}.watcher-tab.active{display:block}
 .watcher-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.watcher-grid{grid-template-columns:1fr}}
 .watcher-row{display:flex;flex-direction:column;gap:6px}
 .watcher-days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .watcher-day{font-size:11px;padding:6px;border:1px solid rgba(255,255,255,.12);border-radius:8px;text-align:center;background:rgba(255,255,255,.03)}
 .watcher-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.watcher-lock-overlay{position:absolute;inset:0;background:rgba(7,8,13,.72);border:1px solid rgba(255,255,255,.12);border-radius:12px;display:none;align-items:center;justify-content:center;text-align:center;padding:16px}
+.watcher-lock-overlay{position:absolute;inset:0;z-index:5;background:rgba(7,8,13,.72);border:1px solid rgba(255,255,255,.12);border-radius:12px;display:none;align-items:center;justify-content:center;text-align:center;padding:16px}
 .elite-badge{font-size:9px;padding:1px 6px;border-radius:999px;background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.4);margin-left:6px}
 .ab-empty { text-align:center; padding:40px 20px; color:var(--muted); }
 .ab-empty-ico { font-size:42px; margin-bottom:12px; }
@@ -1506,7 +1507,7 @@ select.admin-tier-inline-select{
 .btn-locked { opacity:0.7; cursor:not-allowed !important; }
 
 /* React responsive helpers */
-.page-content{padding:12px;display:grid;gap:12px}
+.page-content{padding:12px;display:grid;gap:12px;width:100%}
 @media (max-width:767px){
   .page-content{
     padding-left:max(12px, env(safe-area-inset-left, 0px));
@@ -1547,7 +1548,7 @@ select.admin-tier-inline-select{
 }
 
 @media (min-width:1024px){
-  .page-content{padding:24px 28px;max-width:1400px;margin:0 auto}
+  .page-content{padding:0;display:grid;gap:16px;max-width:var(--hermes-shell-max,1600px);margin:0 auto}
 }
 
 /* Cosmic background layers used by React app */
@@ -1558,19 +1559,21 @@ select.admin-tier-inline-select{
   pointer-events:none;
 }
 .cosmic-bg{
-  background:radial-gradient(circle at 15% -10%, rgba(99,102,241,.28), transparent 45%),
-             radial-gradient(circle at 90% 120%, rgba(6,182,212,.2), transparent 40%),
-             linear-gradient(180deg,#07080d 0%,#0b1020 100%);
+  background:
+    radial-gradient(ellipse 85% 70% at 12% 95%, rgba(99,102,241,.44), transparent 58%),
+    radial-gradient(ellipse 65% 55% at 88% 10%, rgba(34,211,238,.22), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 48% 105%, rgba(167,139,250,.26), transparent 62%),
+    radial-gradient(ellipse 55% 40% at 70% 45%, rgba(99,102,241,.12), transparent 55%),
+    linear-gradient(165deg,#121522 0%,#0d101a 35%,#0a0d14 65%,#080a12 100%);
 }
 .cosmic-aurora{
   position:fixed;
   inset:0;
   z-index:-2;
   background:
-    radial-gradient(ellipse 120% 40% at 50% -10%, oklch(0.30 0.12 295 / 0.2), transparent),
-    radial-gradient(ellipse 80% 30% at 100% 50%, oklch(0.25 0.10 155 / 0.15), transparent),
-    radial-gradient(ellipse 60% 40% at 0% 80%, oklch(0.20 0.08 220 / 0.1), transparent);
-  animation:aurora 15s ease-in-out infinite alternate;
+    radial-gradient(ellipse 70% 42% at 22% 98%, rgba(139,92,246,.28), transparent 72%),
+    radial-gradient(ellipse 45% 28% at 82% 5%, rgba(34,211,238,.16), transparent 72%);
+  animation:aurora 22s ease-in-out infinite alternate;
   pointer-events:none;
 }
 .cosmic-streaks{
@@ -1588,6 +1591,7 @@ select.admin-tier-inline-select{
 
 /* Critical Hermes design-token overrides */
 :root{
+  --hermes-shell-max:1600px;
   --color-bg: oklch(0.10 0.02 260);
   --color-surface: oklch(0.13 0.025 260);
   --color-surface-2: oklch(0.16 0.03 260);
@@ -1600,7 +1604,7 @@ select.admin-tier-inline-select{
   --text-1: oklch(0.95 0.01 260);
   --text-2: oklch(0.70 0.02 260);
   --text-3: oklch(0.50 0.02 260);
-  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-ui: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -1679,7 +1683,25 @@ select.admin-tier-inline-select{
 .progress-fill{height:100%;background:var(--neon-green)}
 
 .app-layout{display:flex;min-height:100vh}
+.app-layout--topnav{flex-direction:column}
 .main-content{flex:1;overflow-y:auto}
+/* TopNav layout: scroll lives on the body so both the sticky top bar and the
+   main content share the same viewport width (otherwise main has its own
+   scrollbar that visually narrows it relative to the top bar). */
+.app-layout--topnav .main-content{overflow-y:visible}
+.main-content--topnav{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:20px clamp(14px,3.5vw,36px) 56px;
+  box-sizing:border-box;
+  overflow-y:visible;
+}
+html:has(.app-layout--topnav){scrollbar-gutter:stable}
+body:has(.app-layout--topnav){overflow-y:auto;scrollbar-gutter:stable}
+@media (max-width:1023px){
+  .main-content--topnav{padding:16px 14px 32px}
+}
 @media (max-width:1023px){
   .main-content{
     padding-left:env(safe-area-inset-left, 0px);
@@ -1725,14 +1747,837 @@ select.admin-tier-inline-select{
   min-width:260px;background:var(--bg-tertiary);border:1px solid var(--border-subtle);border-radius:10px;
   color:var(--text-1);padding:8px 12px;
 }
-.topbar-bell{position:relative;border:none;background:transparent;color:var(--text-2);cursor:pointer}
+.topbar-bell{
+  position:relative;
+  width:30px;height:30px;border-radius:999px;
+  display:grid;place-items:center;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text-secondary);cursor:pointer;
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.topbar-bell:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:var(--text-primary)}
+.topbar-bell svg{width:14px;height:14px}
 .topbar-avatar{
-  width:34px;height:34px;border-radius:999px;display:grid;place-items:center;font-weight:700;
+  width:34px;height:34px;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-weight:700;line-height:1;
   background:linear-gradient(135deg,#8b5cf6,#06b6d4);
 }
 
 @media (max-width:1023px){
   .topbar-search{min-width:0;width:42vw}
+}
+
+/* ── Hermes TopNav (prototype-style horizontal navigation) ─────────────────── */
+.hermes-topnav{
+  position:sticky;top:0;z-index:60;
+  background:color-mix(in srgb,var(--bg-primary) 78%, transparent);
+  backdrop-filter:blur(18px) saturate(140%);
+  border-bottom:1px solid var(--border-subtle);
+}
+.hermes-topnav-inner{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:24px;
+  height:64px;
+  padding:0 clamp(14px,3.5vw,36px);
+  max-width:var(--hermes-shell-max,1600px);margin:0 auto;
+}
+.hermes-topnav-brand{
+  display:flex;align-items:center;gap:10px;background:none;border:0;cursor:pointer;color:inherit;padding:6px 4px;
+}
+.hermes-topnav-logo{display:inline-flex}
+.hermes-topnav-wordmark{
+  font-weight:800;letter-spacing:.08em;font-size:14px;color:var(--text-primary);
+}
+/* Legacy class — kept as alias for older code paths */
+.hermes-topnav-sandbox{
+  font-size:11px;font-weight:700;letter-spacing:.1em;
+  padding:4px 9px;border-radius:999px;
+  background:rgba(245,158,11,.16);color:#fbbf24;border:1px solid rgba(245,158,11,.4);
+}
+.hermes-topnav-primary{
+  display:flex;justify-content:center;gap:4px;align-items:center;
+}
+.hermes-topnav-link{
+  appearance:none;background:none;border:0;cursor:pointer;
+  font-family:inherit;font-size:13.5px;font-weight:500;
+  color:var(--text-secondary);
+  padding:8px 14px;border-radius:10px;
+  transition:color .18s ease,background .18s ease;
+  white-space:nowrap;
+}
+.hermes-topnav-link:hover{color:var(--text-primary);background:rgba(255,255,255,.04)}
+.hermes-topnav-link.is-active{
+  color:var(--text-primary);
+  background:rgba(255,255,255,.08);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.hermes-topnav-right{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;
+}
+/* ─────────────────────────────────────────────────────────────────────────
+   UNIFIED TOPNAV PILLS
+   Every cluster element (tier, currency, bell, gear, …) shares the SAME
+   colour, size, border, padding and typography. Only the avatar keeps its
+   own visual treatment because it is a circular brand element, not a pill.
+   ───────────────────────────────────────────────────────────────────────── */
+.hermes-topnav-pill,
+.hermes-topnav-pill.is-tier,
+.hermes-topnav-pill.is-trial,
+.hermes-topnav-pill.is-admin,
+.hermes-topnav-pill.is-admin-icon,
+.hermes-topnav-pill.is-sandbox{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;gap:6px;
+  height:30px;padding:0 12px;border-radius:999px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text-secondary);
+  font-size:12px;font-weight:600;letter-spacing:.04em;
+  white-space:nowrap;
+  transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease;
+}
+.hermes-topnav-pill:hover,
+.hermes-topnav-pill.is-tier:hover,
+.hermes-topnav-pill.is-trial:hover,
+.hermes-topnav-pill.is-admin:hover,
+.hermes-topnav-pill.is-admin-icon:hover,
+.hermes-topnav-pill.is-sandbox:hover{
+  background:rgba(255,255,255,.08);
+  border-color:rgba(255,255,255,.16);
+  color:var(--text-primary);
+}
+.hermes-topnav-pill.is-admin.is-open,
+.hermes-topnav-pill.is-admin-icon.is-open{
+  background:rgba(255,255,255,.1);
+  border-color:rgba(255,255,255,.2);
+  color:var(--text-primary);
+}
+.hermes-topnav-pill-spark{font-size:11px;line-height:1;opacity:.7}
+.hermes-topnav-pill-suffix{opacity:.7;font-weight:600}
+.hermes-topnav-pill-chevron{font-size:9px;opacity:.7;line-height:1}
+
+/* Icon-only pill (bell, gear, …): square 30×30, centered, same colours. */
+.hermes-topnav-pill.is-icon{
+  width:30px;padding:0;justify-content:center;font-size:13px;
+}
+.hermes-topnav-pill.is-icon svg{display:block}
+
+/* P&L pill — same shell as other pills, only the value gets sign-coloured. */
+.hermes-topnav-pill.is-pnl{
+  gap:8px;
+  font-variant-numeric:tabular-nums;
+}
+.hermes-topnav-pill.is-pnl .hermes-topnav-pill-suffix{
+  opacity:.55;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;
+}
+.hermes-topnav-pill.is-pnl .mono{font-weight:700;font-size:12.5px}
+.hermes-topnav-pill.is-pnl.is-pos .mono{color:#34d399}
+.hermes-topnav-pill.is-pnl.is-neg .mono{color:#f87171}
+.hermes-topnav-pill.is-pnl.is-flat .mono{color:var(--text-secondary)}
+
+/* Legacy aliases — older code still references these classes; we map them to pill styling. */
+.hermes-topnav-trial{
+  display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;
+  background:linear-gradient(135deg,rgba(34,197,94,.16),rgba(16,185,129,.16));
+  border:1px solid rgba(16,185,129,.45);
+  color:#34d399;font-weight:700;font-size:12px;letter-spacing:.04em;cursor:pointer;
+  transition:background .15s ease,color .15s ease;
+}
+.hermes-topnav-trial-spark{filter:drop-shadow(0 0 6px rgba(52,211,153,.7));font-size:11px}
+.hermes-topnav-trial-days{opacity:.85;font-weight:600}
+.hermes-topnav-tier{
+  display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;
+  background:rgba(167,139,250,.16);color:#c4b5fd;border:1px solid rgba(167,139,250,.4);
+  font-weight:700;font-size:12px;letter-spacing:.08em;
+}
+.hermes-topnav-icon{
+  width:30px;height:30px;border-radius:999px;border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);color:var(--text-secondary);
+  display:grid;place-items:center;cursor:pointer;font-size:13px;
+  transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.hermes-topnav-icon:hover{background:rgba(255,255,255,.08);color:var(--text-primary);border-color:rgba(255,255,255,.16)}
+/* ADMIN dropdown */
+.hermes-topnav-admin{position:relative}
+.hermes-topnav-admin-trigger{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 11px;border-radius:999px;
+  font-size:12px;font-weight:700;letter-spacing:.1em;
+  background:rgba(167,139,250,.14);color:#c4b5fd;border:1px solid rgba(167,139,250,.38);
+  transition:background .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.hermes-topnav-admin-trigger:hover{background:rgba(167,139,250,.22);border-color:rgba(167,139,250,.55)}
+.hermes-topnav-admin-trigger.is-open{background:rgba(167,139,250,.22);box-shadow:0 0 0 1px rgba(167,139,250,.35)}
+.hermes-topnav-admin-chevron{font-size:9px;opacity:.85;line-height:1}
+.hermes-topnav-admin-menu{
+  position:absolute;top:calc(100% + 8px);right:0;min-width:220px;
+  background:linear-gradient(180deg,#1a1d2a 0%,#0f1119 100%);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;padding:6px;
+  box-shadow:0 18px 40px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.4);
+  z-index:75;display:flex;flex-direction:column;gap:2px;
+}
+.hermes-topnav-admin-menu button{
+  appearance:none;background:none;border:0;cursor:pointer;font:inherit;
+  text-align:left;padding:9px 12px;border-radius:8px;color:var(--text-secondary);
+  font-size:13px;font-weight:500;
+  transition:background .15s ease,color .15s ease;
+}
+.hermes-topnav-admin-menu button:hover{background:rgba(255,255,255,.06);color:var(--text-primary)}
+.hermes-topnav-admin-menu button.is-active{color:#c4b5fd;background:rgba(167,139,250,.14)}
+.hermes-topnav-avatar{
+  width:30px;height:30px;border-radius:999px;
+  background:linear-gradient(135deg,#a78bfa,#22d3ee);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-weight:800;color:#0b0b14;font-size:12px;line-height:1;
+  border:0;cursor:pointer;
+  box-shadow:0 0 0 2px rgba(167,139,250,.18);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.hermes-topnav-avatar:hover{transform:translateY(-1px);box-shadow:0 0 0 3px rgba(167,139,250,.32)}
+.hermes-topnav-profile{position:relative}
+.hermes-topnav-profile-menu{
+  position:absolute;top:calc(100% + 10px);right:0;min-width:240px;
+  background:linear-gradient(180deg,#1a1d2a 0%,#0f1119 100%);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:14px;padding:8px;
+  box-shadow:0 18px 40px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.4);
+  z-index:80;display:flex;flex-direction:column;gap:2px;
+}
+.hermes-topnav-profile-menu hr{
+  border:0;border-top:1px solid var(--border-subtle);margin:6px 4px;
+}
+.hermes-topnav-profile-head{
+  padding:10px 12px 8px;display:flex;flex-direction:column;gap:2px;
+}
+.hermes-topnav-profile-head strong{font-size:13.5px;color:var(--text-primary)}
+.hermes-topnav-profile-menu button{
+  appearance:none;background:none;border:0;cursor:pointer;font:inherit;
+  text-align:left;padding:8px 12px;border-radius:8px;color:var(--text-secondary);
+  transition:background .15s ease,color .15s ease;font-size:13px;
+}
+.hermes-topnav-profile-menu button:hover{background:rgba(255,255,255,.06);color:var(--text-primary)}
+.hermes-topnav-profile-logout{color:#fb7185 !important}
+.hermes-topnav-profile-logout:hover{background:rgba(244,63,94,.12) !important;color:#fb7185 !important}
+
+@media (max-width:1023px){
+  .hermes-topnav-inner{grid-template-columns:auto 1fr auto;gap:12px;height:56px}
+  .hermes-topnav-primary{display:none}
+  .hermes-topnav-sandbox{display:none}
+}
+
+/* ── Hermes Dashboard (prototype-style) ────────────────────────────────────── */
+.hermes-dashboard{display:flex;flex-direction:column;gap:24px}
+
+.hermes-slots{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+}
+@media (max-width:899px){.hermes-slots{grid-template-columns:1fr;gap:10px}}
+.hermes-slot-card{
+  display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:14px;
+  background:rgba(13,15,23,.7);
+  border:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(18px) saturate(140%);
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+}
+.hermes-slot-card:hover{transform:translateY(-1px);border-color:rgba(167,139,250,.3);box-shadow:0 10px 32px rgba(99,102,241,.12)}
+.hermes-slot-icon{
+  width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  background:rgba(167,139,250,.12);color:#c4b5fd;border:1px solid rgba(167,139,250,.22);
+}
+.hermes-slot-body{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.hermes-slot-label{font-size:12px;color:var(--text-muted);letter-spacing:.04em}
+.hermes-slot-progress{display:flex;align-items:center;gap:10px}
+.hermes-slot-progress strong{font-size:16px;color:var(--text-primary);font-weight:600;letter-spacing:.02em}
+.hermes-slot-dots{display:inline-flex;gap:4px}
+.hermes-slot-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(167,139,250,.18);
+  transition:background .2s ease,box-shadow .2s ease;
+}
+.hermes-slot-dot.is-filled{
+  background:linear-gradient(135deg,#a78bfa,#22d3ee);
+  box-shadow:0 0 6px rgba(167,139,250,.6);
+}
+
+.hermes-dashboard-grid{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,340px);gap:16px;
+  align-items:stretch;
+}
+.hermes-dashboard-grid--stack{grid-template-columns:1fr;align-items:start}
+.hermes-dashboard-main{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+.hermes-category{display:flex;flex-direction:column;gap:10px}
+.hermes-category-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:8px;border-bottom:1px solid var(--border-subtle);
+}
+.hermes-category-title{
+  font-size:11.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text-secondary);
+}
+.hermes-category-meta{display:flex;align-items:center;gap:12px}
+.hermes-category-count{font-size:12px;color:var(--text-muted)}
+.hermes-category-add{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:700;letter-spacing:.08em;
+  background:none;border:1px solid rgba(167,139,250,.4);color:#c4b5fd;
+  padding:5px 10px;border-radius:999px;cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,color .18s ease;
+}
+.hermes-category-add:hover{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.6)}
+
+.hermes-category-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+  align-items:stretch;
+  grid-auto-rows:1fr;
+}
+@media (max-width:899px){.hermes-category-grid{grid-template-columns:1fr}}
+
+.hermes-slot-placeholder{
+  appearance:none;background:none;cursor:pointer;
+  border:1.5px dashed var(--border-default);border-radius:14px;
+  padding:18px 16px;min-height:148px;
+  color:var(--text-muted);font-size:13px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  transition:border-color .2s ease,background .2s ease,color .2s ease;
+  text-transform:lowercase;
+}
+.hermes-slot-placeholder:hover{
+  border-color:rgba(167,139,250,.55);background:rgba(167,139,250,.05);color:#c4b5fd;
+}
+.hermes-slot-placeholder-icon{
+  width:32px;height:32px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid currentColor;
+  line-height:1;
+  flex-shrink:0;
+}
+.hermes-slot-placeholder-icon > svg{display:block}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Side panel — Community Feed (CMC-style)
+   Aligned vertically with the categories grid (stretch). The post list
+   inside scrolls; everything else stays anchored.
+   ───────────────────────────────────────────────────────────────────────── */
+.hermes-side-panel{
+  display:flex;flex-direction:column;gap:0;
+  min-height:0;
+}
+.hermes-side-panel.hermes-feed{
+  position:relative;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  background:linear-gradient(180deg,rgba(13,15,23,.85),rgba(13,15,23,.7));
+  backdrop-filter:blur(18px) saturate(140%);
+  overflow:hidden;
+  /* Stretches to grid row height (align-items:stretch on parent grid). */
+}
+@media (max-width:1023px){
+  .hermes-side-panel.hermes-feed{min-height:560px}
+}
+
+/* — Sentiment header — */
+.hermes-feed-sentiment{
+  padding:14px 14px 12px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  display:flex;flex-direction:column;gap:8px;
+  flex-shrink:0;
+}
+.hermes-feed-sentiment-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.hermes-feed-sentiment-title{
+  font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text-secondary);
+}
+.hermes-feed-sentiment-votes{font-size:10.5px;color:var(--text-muted)}
+.hermes-feed-sentiment-bar{
+  display:flex;height:6px;border-radius:999px;overflow:hidden;
+  background:rgba(255,255,255,.04);
+}
+.hermes-feed-sentiment-bull{background:linear-gradient(90deg,#10b981,#22d3ee);transition:width .3s ease}
+.hermes-feed-sentiment-bear{background:linear-gradient(90deg,#ef4444,#f97316);transition:width .3s ease}
+.hermes-feed-sentiment-legend{
+  display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;
+}
+.hermes-feed-sentiment-legend .is-bull{color:#34d399;display:inline-flex;align-items:center;gap:4px}
+.hermes-feed-sentiment-legend .is-bear{color:#f87171;display:inline-flex;align-items:center;gap:4px}
+
+/* — Tabs — */
+.hermes-feed-tabs{
+  display:flex;padding:6px;gap:4px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.02);
+  flex-shrink:0;
+}
+.hermes-feed-tab{
+  flex:1;appearance:none;background:none;border:0;cursor:pointer;
+  padding:7px 6px;font-size:12.5px;font-weight:600;
+  color:var(--text-muted);border-radius:8px;
+  transition:color .18s ease,background .18s ease;
+}
+.hermes-feed-tab.is-active{background:rgba(255,255,255,.06);color:var(--text-primary)}
+.hermes-feed-tab:hover:not(.is-active){color:var(--text-secondary)}
+
+/* — Scrollable list — */
+.hermes-feed-list{
+  flex:1;min-height:0;overflow-y:auto;
+  padding:4px 10px 6px;display:flex;flex-direction:column;gap:0;
+  scrollbar-width:thin;
+}
+.hermes-feed-list::-webkit-scrollbar{width:6px}
+.hermes-feed-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px}
+
+.hermes-feed-empty{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:32px 16px;color:var(--text-muted);text-align:center;font-size:12.5px;
+}
+.hermes-feed-empty strong{color:var(--text-secondary);font-size:13px}
+
+.hermes-feed-post{
+  padding:10px 6px;
+  display:flex;flex-direction:column;gap:6px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.hermes-feed-post:last-child{border-bottom:0}
+
+.hermes-feed-post-head{display:flex;gap:10px;align-items:center}
+.hermes-feed-post-avatar{
+  width:30px;height:30px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:12.5px;font-weight:700;flex-shrink:0;
+  line-height:1;
+  background:linear-gradient(135deg,#8b5cf6,#06b6d4);color:#0b0d14;
+}
+.hermes-feed-post-avatar[data-sentiment="bullish"]{background:linear-gradient(135deg,#10b981,#22d3ee)}
+.hermes-feed-post-avatar[data-sentiment="bearish"]{background:linear-gradient(135deg,#ef4444,#f97316)}
+.hermes-feed-post-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hermes-feed-post-name{
+  font-size:12.5px;font-weight:600;color:var(--text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hermes-feed-post-sub{
+  display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;
+}
+.hermes-feed-post-symbol{color:#c4b5fd;font-weight:600}
+.hermes-feed-post-sentiment{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:1px 6px;border-radius:6px;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+}
+.hermes-feed-post-sentiment.is-bullish{
+  color:#34d399;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);
+}
+.hermes-feed-post-sentiment.is-bearish{
+  color:#f87171;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);
+}
+.hermes-feed-post-time{margin-left:auto}
+
+.hermes-feed-post-del{
+  appearance:none;background:none;border:0;cursor:pointer;
+  color:var(--text-muted);padding:4px;border-radius:6px;
+  display:grid;place-items:center;flex-shrink:0;
+}
+.hermes-feed-post-del:hover{color:#f87171;background:rgba(239,68,68,.08)}
+
+.hermes-feed-post-body{
+  font-size:13px;line-height:1.42;color:var(--text-primary);
+  white-space:pre-wrap;word-break:break-word;margin:0;
+}
+
+.hermes-feed-post-actions{display:flex;gap:14px;padding-top:2px}
+.hermes-feed-post-action{
+  appearance:none;background:none;border:0;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 0;color:var(--text-muted);font-size:11.5px;font-weight:500;
+  transition:color .18s ease;
+}
+.hermes-feed-post-action:hover{color:var(--text-primary)}
+.hermes-feed-post-action.is-active{color:#ef4444}
+
+/* — Composer — */
+.hermes-feed-composer{
+  border-top:1px solid rgba(255,255,255,.06);
+  padding:10px;display:flex;flex-direction:column;gap:8px;
+  background:rgba(255,255,255,.015);
+  flex-shrink:0;
+}
+.hermes-feed-composer-locked{
+  text-align:center;font-size:12px;color:var(--text-muted);padding:12px 4px;
+}
+.hermes-feed-composer-input{
+  appearance:none;resize:vertical;
+  width:100%;min-height:42px;max-height:140px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);border-radius:10px;
+  padding:9px 10px;font-size:12.5px;line-height:1.4;
+  color:var(--text-primary);font-family:inherit;
+  transition:border-color .18s ease,background .18s ease;
+}
+.hermes-feed-composer-input:focus{
+  outline:none;border-color:rgba(167,139,250,.45);background:rgba(255,255,255,.05);
+}
+.hermes-feed-composer-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+}
+.hermes-feed-sent-toggle{display:flex;gap:6px}
+.hermes-feed-sent-btn{
+  appearance:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:999px;font-size:11px;font-weight:600;
+  background:rgba(255,255,255,.02);color:var(--text-muted);
+  border:1px solid rgba(255,255,255,.06);
+  transition:all .18s ease;
+}
+.hermes-feed-sent-btn.is-bull.is-on{background:rgba(16,185,129,.14);color:#34d399;border-color:rgba(16,185,129,.4)}
+.hermes-feed-sent-btn.is-bear.is-on{background:rgba(239,68,68,.14);color:#f87171;border-color:rgba(239,68,68,.4)}
+.hermes-feed-sent-btn:hover:not(.is-on){background:rgba(255,255,255,.04);color:var(--text-secondary)}
+
+.hermes-feed-composer-actions{display:flex;align-items:center;gap:8px}
+.hermes-feed-composer-counter{
+  font-size:10.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;
+}
+.hermes-feed-composer-counter.is-over{color:#f87171}
+.hermes-feed-post-btn{
+  appearance:none;cursor:pointer;
+  background:linear-gradient(135deg,#8b5cf6,#22d3ee);color:#0b0d14;
+  font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:999px;
+  border:0;transition:transform .15s ease,opacity .15s ease;
+}
+.hermes-feed-post-btn:disabled{opacity:.45;cursor:not-allowed}
+.hermes-feed-post-btn:hover:not(:disabled){transform:translateY(-1px)}
+.hermes-pnl-card{padding:18px 20px;border-radius:18px}
+.hermes-pnl-card--hero{
+  background:transparent !important;
+  border:1px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;gap:6px;
+  padding:22px 22px 18px;
+}
+.hermes-pnl-label{
+  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-muted);
+}
+.hermes-pnl-value{
+  font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-0.5px;display:block;margin-top:2px;
+}
+.hermes-pnl-meta{margin-top:2px;display:block}
+.hermes-pnl-spark{width:100%;height:110px;display:block;margin:14px 0 6px}
+.hermes-pnl-list{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.hermes-pnl-list-row{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 8px;border-radius:8px;
+  background:rgba(255,255,255,.02);
+  font-size:12.5px;
+}
+.hermes-pnl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.hermes-pnl-name{flex:1;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.hermes-tier-card{padding:16px 18px;border-radius:18px}
+.hermes-tier-grid{
+  margin-top:10px;
+  display:flex;flex-direction:column;gap:8px;
+  font-size:12.5px;
+}
+.hermes-tier-grid > div{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 0;border-bottom:1px solid var(--border-subtle);
+}
+.hermes-tier-grid > div:last-child{border-bottom:0}
+.hermes-tier-grid strong{color:var(--text-primary);font-weight:600}
+
+.hermes-trades-card{padding:14px 18px;border-radius:18px}
+.hermes-trades-list{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.hermes-trades-row{
+  display:grid;grid-template-columns:54px 1fr auto;align-items:center;gap:10px;
+  padding:6px 0;border-bottom:1px dashed var(--border-subtle);
+  font-size:12.5px;
+}
+.hermes-trades-row:last-child{border-bottom:0}
+.hermes-trades-side{
+  font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  padding:3px 8px;border-radius:6px;text-align:center;
+}
+.hermes-trades-side.is-buy{background:rgba(16,185,129,.16);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+.hermes-trades-side.is-sell{background:rgba(239,68,68,.14);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.hermes-trades-symbol{color:var(--text-primary);font-size:12.5px}
+.hermes-trades-time{text-align:right;white-space:nowrap}
+
+.hermes-dashboard-secondary{
+  margin-top:18px;display:flex;flex-direction:column;gap:12px;
+}
+.hermes-dashboard-secondary:empty{display:none}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Heatmap (24h) — full-width treemap on dashboard
+   ───────────────────────────────────────────────────────────────────────── */
+.hermes-heatmap{
+  padding:14px 16px 16px;border-radius:18px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.hermes-heatmap-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.hermes-heatmap-title{display:flex;align-items:baseline;gap:8px}
+.hermes-heatmap-title h3{
+  margin:0;font-size:16px;font-weight:700;letter-spacing:-0.01em;color:var(--text-primary);
+}
+.hermes-heatmap-sub{
+  font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+}
+.hermes-heatmap-tabs{
+  display:inline-flex;gap:4px;padding:4px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:999px;
+}
+.hermes-heatmap-tab{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:6px 14px;border-radius:999px;border:0;background:none;
+  color:var(--text-muted);font-size:12px;font-weight:600;
+  transition:background .18s ease,color .18s ease;
+}
+.hermes-heatmap-tab:hover:not(.is-active){color:var(--text-secondary)}
+.hermes-heatmap-tab.is-active{
+  background:rgba(255,255,255,.08);
+  color:var(--text-primary);
+}
+
+.hermes-heatmap-canvas{
+  position:relative;width:100%;
+  height:clamp(420px,52vw,640px);
+  border-radius:12px;overflow:hidden;
+  background:rgba(0,0,0,.18);
+}
+.hermes-heatmap-state{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;
+  color:var(--text-muted);font-size:13px;text-align:center;padding:24px;
+}
+.hermes-heatmap-state strong{color:var(--text-secondary);font-size:14px}
+
+.hermes-heatmap-tile{
+  position:absolute;
+  border:1px solid transparent;
+  display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+  padding:10px 12px;gap:4px;
+  overflow:hidden;
+  cursor:default;
+  transition:filter .18s ease,transform .18s ease;
+}
+.hermes-heatmap-tile:hover{filter:brightness(1.12)}
+.hermes-heatmap-tile-symbol{
+  font-weight:800;letter-spacing:-0.02em;line-height:1;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+  white-space:nowrap;
+}
+.hermes-heatmap-tile-value{
+  font-weight:600;line-height:1;opacity:.92;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+  white-space:nowrap;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Intelligence News Bubbles — agent-fed scrolling pill row under banner
+   ───────────────────────────────────────────────────────────────────────── */
+.hermes-news-rail{
+  position:relative;
+  margin-top:-4px;
+}
+.hermes-news-rail::before,
+.hermes-news-rail::after{
+  content:"";
+  position:absolute;top:0;bottom:0;width:32px;
+  pointer-events:none;z-index:1;
+}
+.hermes-news-rail::before{
+  left:0;
+  background:linear-gradient(90deg,rgba(7,9,15,1),rgba(7,9,15,0));
+}
+.hermes-news-rail::after{
+  right:0;
+  background:linear-gradient(270deg,rgba(7,9,15,1),rgba(7,9,15,0));
+}
+.hermes-news-rail-track{
+  display:flex;align-items:center;gap:8px;
+  overflow-x:auto;overflow-y:hidden;
+  padding:4px 4px 6px;
+  scroll-behavior:smooth;
+  scrollbar-width:none;
+}
+.hermes-news-rail-track::-webkit-scrollbar{display:none}
+
+.hermes-news-pill{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;gap:8px;
+  height:32px;padding:0 14px;border-radius:999px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text-secondary);
+  font-size:12.5px;font-weight:600;letter-spacing:.005em;
+  white-space:nowrap;flex-shrink:0;
+  transition:background .18s ease,border-color .18s ease,color .18s ease,transform .15s ease;
+}
+.hermes-news-pill:hover{
+  background:rgba(255,255,255,.08);
+  border-color:rgba(255,255,255,.16);
+  color:var(--text-primary);
+  transform:translateY(-1px);
+}
+.hermes-news-pill:disabled{cursor:default}
+.hermes-news-pill:disabled:hover{transform:none}
+
+.hermes-news-pill-icon{
+  font-size:13px;line-height:1;flex-shrink:0;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.hermes-news-pill-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  background:rgba(148,163,184,.6);
+}
+.hermes-news-pill-dot.is-orange{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.55)}
+.hermes-news-pill-dot.is-blue{background:#3b82f6;box-shadow:0 0 6px rgba(59,130,246,.55)}
+.hermes-news-pill-dot.is-green{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.55)}
+.hermes-news-pill-dot.is-red{background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.55)}
+.hermes-news-pill-dot.is-purple{background:#a855f7;box-shadow:0 0 6px rgba(168,85,247,.55)}
+
+.hermes-news-pill-text{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:38ch;
+}
+
+/* Subtle accent on the whole pill border for high-priority items */
+.hermes-news-pill.is-orange{border-color:rgba(245,158,11,.22)}
+.hermes-news-pill.is-blue{border-color:rgba(59,130,246,.22)}
+.hermes-news-pill.is-green{border-color:rgba(16,185,129,.22)}
+.hermes-news-pill.is-red{border-color:rgba(239,68,68,.22)}
+.hermes-news-pill.is-purple{border-color:rgba(168,85,247,.22)}
+
+
+/* ── Compact AgentCard (prototype style) ─────────────────────────────────── */
+.hermes-agent-card{
+  padding:14px 16px;border-radius:14px;
+  background:rgba(13,15,23,.7);
+  border:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(18px) saturate(140%);
+  display:flex;flex-direction:column;gap:10px;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,opacity .18s ease;
+  min-height:0;
+  cursor:pointer;
+  user-select:none;
+}
+.hermes-agent-card:hover{
+  transform:translateY(-1px);
+  border-color:rgba(167,139,250,.28);
+  box-shadow:0 12px 36px rgba(99,102,241,.12);
+}
+.hermes-agent-card.is-dragging{
+  opacity:.4;transform:scale(.98);box-shadow:none;border-color:rgba(167,139,250,.4);
+}
+.hermes-agent-card.is-drag-over{
+  border-color:rgba(34,211,238,.6);
+  box-shadow:0 0 0 2px rgba(34,211,238,.4),0 12px 36px rgba(34,211,238,.18);
+}
+.hermes-agent-card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:32px;
+}
+.hermes-agent-card-symbol-block{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.hermes-agent-card-symbol{
+  font-size:15px;font-weight:700;letter-spacing:.01em;color:var(--text-primary);
+  font-family:'JetBrains Mono', ui-monospace, monospace;line-height:1.2;
+}
+.hermes-agent-card-strategy{font-size:12px;line-height:1.3;color:var(--text-muted)}
+.hermes-agent-card-head-actions{
+  display:flex;align-items:center;gap:4px;flex-shrink:0;height:24px;
+}
+.hermes-agent-card-status{
+  width:9px;height:9px;border-radius:50%;flex-shrink:0;
+  margin-right:4px;
+}
+.hermes-agent-card-icon-btn{
+  appearance:none;background:none;border:0;cursor:pointer;font:inherit;
+  width:24px;height:24px;border-radius:6px;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--text-muted);
+  transition:background .15s ease,color .15s ease;
+  line-height:0;padding:0;
+}
+.hermes-agent-card-icon-btn:hover{background:rgba(255,255,255,.06);color:var(--text-primary)}
+.hermes-agent-card-icon-btn svg{display:block}
+.hermes-agent-card-grip{cursor:grab}
+.hermes-agent-card-grip:active{cursor:grabbing}
+.hermes-agent-card-menu{position:relative;display:inline-flex}
+.hermes-agent-card-menu-popover{
+  position:absolute;top:calc(100% + 6px);right:0;min-width:200px;z-index:60;
+  background:color-mix(in srgb,var(--bg-elevated) 94%, transparent);
+  backdrop-filter:blur(18px) saturate(150%);
+  border:1px solid var(--border-default);
+  border-radius:10px;padding:6px;
+  box-shadow:0 18px 40px rgba(0,0,0,.45);
+  display:flex;flex-direction:column;gap:1px;
+}
+.hermes-agent-card-menu-popover button{
+  appearance:none;background:none;border:0;cursor:pointer;font:inherit;
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:6px;
+  color:var(--text-secondary);font-size:12.5px;text-align:left;
+  transition:background .12s ease,color .12s ease;
+}
+.hermes-agent-card-menu-popover button:hover{background:rgba(255,255,255,.06);color:var(--text-primary)}
+.hermes-agent-card-menu-popover button.is-destructive{color:#fb7185}
+.hermes-agent-card-menu-popover button.is-destructive:hover{background:rgba(244,63,94,.12);color:#fb7185}
+.hermes-agent-card-menu-popover hr{border:0;border-top:1px solid var(--border-subtle);margin:4px 2px}
+.hermes-agent-card-status.is-live{
+  background:#22c55e;
+  box-shadow:0 0 0 3px rgba(34,197,94,.18),0 0 12px rgba(34,197,94,.55);
+}
+.hermes-agent-card-status.is-paused{
+  background:#f59e0b;
+  box-shadow:0 0 0 3px rgba(245,158,11,.16);
+}
+
+.hermes-agent-card-stats{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  min-height:24px;
+}
+.hermes-agent-card-stat{
+  display:inline-flex;align-items:baseline;gap:5px;
+  font-size:12px;color:var(--text-muted);
+}
+.hermes-agent-card-stat-label{font-size:11px;font-weight:500;letter-spacing:.04em;color:var(--text-muted)}
+.hermes-agent-card-stat .mono{font-size:13px;font-weight:700;color:var(--text-primary)}
+.hermes-agent-card-pill{
+  font-size:10px;font-weight:700;letter-spacing:.1em;
+  padding:3px 8px;border-radius:6px;line-height:1;
+  display:inline-flex;align-items:center;
+}
+.hermes-agent-card-pill.is-paper{
+  background:rgba(167,139,250,.15);color:#c4b5fd;border:1px solid rgba(167,139,250,.3);
+}
+.hermes-agent-card-pill.is-live{
+  background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3);
+}
+.hermes-agent-card-spark{margin-left:auto;width:88px;height:28px;flex-shrink:0}
+.hermes-agent-card-spark svg{width:100%;height:100%;display:block}
+
+.hermes-agent-card-actions{
+  display:flex;gap:6px;flex-wrap:wrap;
+  margin-top:2px;
+}
+.hermes-pill-action{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;gap:5px;
+  padding:6px 11px;border-radius:8px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+  color:var(--text-secondary);
+  font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.hermes-pill-action:hover{
+  background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.32);color:#c4b5fd;
 }
 
 /* Agent evolution + personalities */
@@ -3295,17 +4140,22 @@ select.admin-tier-inline-select{
   display:inline-flex;
   align-items:center;
   gap:6px;
-  padding:6px 10px;
+  height:30px;
+  padding:0 12px;
   border-radius:999px;
-  background:color-mix(in oklab, var(--bg-2) 70%, transparent);
-  border:1px solid color-mix(in oklab, var(--text) 12%, transparent);
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
   font-size:12px;
+  font-weight:600;
+  letter-spacing:.04em;
+  color:var(--text-secondary);
   cursor:pointer;
-  transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  transition:background .15s ease, border-color .15s ease, color .15s ease;
 }
 .swarm-badge:hover{
-  transform:translateY(-1px);
-  background:color-mix(in oklab, var(--bg-2) 50%, transparent);
+  background:rgba(255,255,255,.08);
+  border-color:rgba(255,255,255,.16);
+  color:var(--text-primary);
 }
 .swarm-badge-dot{
   width:8px;
@@ -3356,3 +4206,1798 @@ select.admin-tier-inline-select{
   justify-content:space-between;
   gap:12px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PROTOTYPE THEME · F3-F8 redesign primitives
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Page-level header (used by Marketplace / Leaderboard / Builder / Backtest /
+   Settings / Admin / Developer / Owner DS / Swarm). */
+.hermes-page-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  margin:0 0 18px;padding-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.hermes-page-title{
+  margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em;color:var(--text-primary);
+  background:linear-gradient(135deg,#fff 0%,#c4b5fd 60%,#a78bfa 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hermes-page-lead{
+  margin:6px 0 0;color:var(--text-tertiary,#94a3b8);font-size:13px;line-height:1.5;
+}
+
+/* Pill-shaped tab nav (used in Marketplace, Leaderboard, Builder). */
+.hermes-tabs{
+  display:inline-flex;gap:4px;padding:4px;border-radius:12px;
+  background:rgba(13,15,23,.7);border:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(18px);
+}
+.hermes-tab{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:8px 14px;border-radius:8px;border:1px solid transparent;
+  background:transparent;color:var(--text-secondary,#cbd5e1);
+  font-size:12.5px;font-weight:600;letter-spacing:.02em;
+  transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.hermes-tab:hover{background:rgba(255,255,255,.04);color:var(--text-primary)}
+.hermes-tab.is-active{
+  background:linear-gradient(135deg,rgba(139,92,246,.22),rgba(139,92,246,.12));
+  border-color:rgba(167,139,250,.3);color:#fff;
+  box-shadow:0 0 0 1px rgba(167,139,250,.18) inset,0 6px 20px rgba(99,102,241,.18);
+}
+
+/* Toolbar row (search + filter pills) */
+.hermes-marketplace-toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin:14px 0 18px;
+}
+.hermes-search{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:9px 14px;border-radius:10px;
+  background:rgba(13,15,23,.7);border:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(18px);
+  min-width:280px;flex:1 1 280px;max-width:520px;
+  color:var(--text-tertiary);
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.hermes-search:focus-within{border-color:rgba(167,139,250,.4);box-shadow:0 0 0 3px rgba(167,139,250,.12)}
+.hermes-search input{
+  flex:1;border:none;outline:none;background:transparent;
+  color:var(--text-primary);font:inherit;font-size:13px;
+}
+.hermes-search input::placeholder{color:var(--text-tertiary)}
+.hermes-filter-pills{display:inline-flex;gap:6px;flex-wrap:wrap}
+.hermes-filter-pill{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:7px 12px;border-radius:8px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  color:var(--text-tertiary);
+  font-size:10.5px;font-weight:700;letter-spacing:.08em;
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.hermes-filter-pill:hover{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.28);color:#c4b5fd}
+.hermes-filter-pill.is-active{
+  background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(34,211,238,.18));
+  border-color:rgba(167,139,250,.45);color:#fff;
+  box-shadow:0 4px 12px rgba(99,102,241,.25);
+}
+
+/* CTA pill (e.g. + Vytvoriť vlastného / + Vytvoriť nový swarm) */
+.hermes-cta-pill{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:9px 16px;border-radius:10px;
+  background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%);
+  border:1px solid rgba(167,139,250,.5);
+  color:#0b0b14;font-size:12.5px;font-weight:700;letter-spacing:.02em;
+  box-shadow:0 8px 24px rgba(139,92,246,.35),0 0 0 1px rgba(255,255,255,.08) inset;
+  transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
+}
+.hermes-cta-pill:hover{transform:translateY(-1px);filter:brightness(1.05);box-shadow:0 12px 32px rgba(139,92,246,.45)}
+.hermes-cta-pill:disabled{opacity:.5;cursor:not-allowed}
+.hermes-cta-pill.is-secondary{
+  background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1);color:var(--text-primary);
+  box-shadow:none;
+}
+.hermes-cta-pill.is-secondary:hover{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.32);filter:none}
+.hermes-cta-pill.is-block{width:100%;justify-content:center;padding:12px 16px;font-size:13px}
+
+/* ── Marketplace cards (compact prototype style) ───────────────────────────── */
+.hermes-marketplace-grid{
+  display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+}
+.hermes-marketplace-grid.is-mobile{grid-template-columns:1fr}
+.hermes-mp-card{
+  padding:18px;border-radius:14px;
+  background:rgba(13,15,23,.7);
+  border:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(18px) saturate(140%);
+  display:flex;flex-direction:column;gap:14px;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+  position:relative;overflow:hidden;
+}
+.hermes-mp-card::before{
+  content:"";position:absolute;inset:-1px;border-radius:inherit;
+  background:linear-gradient(135deg,rgba(167,139,250,.15),transparent 35%,transparent 65%,rgba(34,211,238,.12));
+  opacity:0;transition:opacity .25s ease;pointer-events:none;
+  -webkit-mask:linear-gradient(#000,#000) content-box,linear-gradient(#000,#000);
+  mask:linear-gradient(#000,#000) content-box,linear-gradient(#000,#000);
+  -webkit-mask-composite:xor;mask-composite:exclude;padding:1px;
+}
+.hermes-mp-card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(167,139,250,.35);
+  box-shadow:0 16px 44px rgba(99,102,241,.18);
+}
+.hermes-mp-card:hover::before{opacity:1}
+
+.hermes-mp-card-head{display:flex;align-items:flex-start;gap:12px}
+.hermes-mp-card-avatar{
+  width:42px;height:42px;border-radius:11px;flex-shrink:0;
+  display:grid;place-items:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.25),0 0 0 1px rgba(255,255,255,.06) inset;
+}
+.hermes-mp-card-titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hermes-mp-card-name{font-size:14px;font-weight:700;color:var(--text-primary);letter-spacing:.005em}
+.hermes-mp-card-badge{
+  flex-shrink:0;font-size:9.5px;font-weight:800;letter-spacing:.1em;
+  padding:4px 7px;border-radius:5px;display:inline-flex;align-items:center;gap:3px;
+}
+.hermes-mp-card-badge.is-amber{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.hermes-mp-card-badge.is-red{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.hermes-mp-card-badge.is-green{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.hermes-mp-card-badge.is-blue{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+
+.hermes-mp-card-author{font-size:11.5px;color:var(--text-tertiary)}
+.hermes-mp-card-author strong{color:var(--text-secondary,#cbd5e1)}
+.hermes-mp-card-verified{
+  display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;
+  background:rgba(34,211,238,.18);color:#22d3ee;font-size:9px;margin-left:5px;
+}
+
+.hermes-mp-card-stats{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  padding:10px;border-radius:10px;background:rgba(0,0,0,.2);
+}
+.hermes-mp-card-stat{display:flex;flex-direction:column;gap:3px}
+.hermes-mp-card-stat strong{font-size:14px;font-family:'JetBrains Mono', ui-monospace, monospace}
+
+.hermes-mp-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hermes-mp-card-followers{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11.5px;color:var(--text-tertiary);
+}
+.hermes-mp-card-btn{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:8px 14px;border-radius:8px;
+  background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 100%);
+  border:none;color:#0b0b14;
+  font-size:11.5px;font-weight:700;letter-spacing:.04em;
+  box-shadow:0 4px 14px rgba(139,92,246,.32);
+  transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
+}
+.hermes-mp-card-btn:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 8px 22px rgba(139,92,246,.42)}
+.hermes-mp-card-btn.is-subscribed{
+  background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.32);box-shadow:none;
+}
+.hermes-mp-card-btn.is-subscribed:hover{filter:none;background:rgba(34,197,94,.22)}
+
+.hermes-marketplace-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  margin:0 0 18px;
+}
+.hermes-community-tools{margin-bottom:18px}
+
+/* ── Leaderboard podium ───────────────────────────────────────────────────── */
+.hermes-podium{
+  display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:14px;
+  align-items:end;
+  margin:8px 0 18px;
+}
+@media (max-width:899px){.hermes-podium{grid-template-columns:1fr;align-items:stretch}}
+
+.hermes-podium-card{
+  appearance:none;cursor:pointer;font:inherit;text-align:left;
+  padding:18px 18px 22px;border-radius:16px;
+  background:rgba(13,15,23,.7);
+  border:1px solid rgba(255,255,255,.06);backdrop-filter:blur(18px) saturate(140%);
+  display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.hermes-podium-card.is-tall{padding-block:26px 28px}
+.hermes-podium-card:hover{transform:translateY(-2px);box-shadow:0 16px 44px rgba(0,0,0,.35)}
+.hermes-podium-card.is-gold{
+  border-color:rgba(251,191,36,.45);
+  background:linear-gradient(180deg,rgba(251,191,36,.08),rgba(13,15,23,.7) 60%);
+  box-shadow:0 16px 40px rgba(251,191,36,.18),inset 0 0 0 1px rgba(251,191,36,.18);
+}
+.hermes-podium-card.is-silver{
+  border-color:rgba(203,213,225,.32);
+  background:linear-gradient(180deg,rgba(203,213,225,.06),rgba(13,15,23,.7) 60%);
+}
+.hermes-podium-card.is-bronze{
+  border-color:rgba(251,146,60,.32);
+  background:linear-gradient(180deg,rgba(251,146,60,.06),rgba(13,15,23,.7) 60%);
+}
+.hermes-podium-rank{
+  font-family:'JetBrains Mono', ui-monospace, monospace;
+  font-size:13px;font-weight:700;color:var(--text-tertiary);letter-spacing:.06em;
+}
+.hermes-podium-medal{font-size:28px;line-height:1}
+.hermes-podium-name{font-size:15px;font-weight:700;color:var(--text-primary);margin-top:2px}
+.hermes-podium-pnl{
+  font-size:22px;font-weight:700;font-family:'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing:-.01em;margin-top:6px;
+}
+.hermes-podium-pnl.is-pos{color:var(--accent-success,#10b981)}
+.hermes-podium-pnl.is-neg{color:var(--accent-danger,#ef4444)}
+.hermes-podium-spark{height:32px;width:100%}
+.hermes-podium-spark svg{width:100%;height:100%}
+.hermes-podium-meta{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;color:var(--text-tertiary);font-weight:600;
+}
+
+.hermes-lb-table-wrap{padding:0;overflow:hidden}
+
+/* ── Stat tiles (Admin / Backtest pre-results) ────────────────────────────── */
+.hermes-stats-row{
+  display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+}
+.hermes-stat-card{
+  padding:14px 16px;border-radius:12px;
+  background:rgba(13,15,23,.7);
+  border:1px solid rgba(255,255,255,.06);backdrop-filter:blur(18px);
+  display:flex;flex-direction:column;gap:6px;
+}
+.hermes-stat-card strong{font-size:18px;font-weight:700;color:var(--text-primary);font-family:'JetBrains Mono', ui-monospace, monospace}
+
+/* ── Backtest preset chips ────────────────────────────────────────────────── */
+.hermes-backtest-presets{
+  display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px;
+}
+
+/* Mobile spacing tweaks */
+@media (max-width:600px){
+  .hermes-page-title{font-size:20px}
+  .hermes-page-lead{font-size:12px}
+  .hermes-page-head{align-items:flex-start;flex-direction:column;gap:8px}
+}
+
+/* ── Notifications dropdown (eToro-style inbox + filters) ───────────────────── */
+.notify-panel{
+  position:absolute;top:calc(100% + 8px);right:0;z-index:90;
+  width:min(400px,92vw);max-height:min(72vh,640px);
+  display:flex;flex-direction:column;padding:0;overflow:hidden;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 20px 48px rgba(0,0,0,.45);
+}
+.notify-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 14px 10px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.notify-panel-title{
+  font-size:15px;font-weight:700;letter-spacing:-0.02em;color:var(--text-primary);
+}
+.notify-panel-gear{
+  appearance:none;cursor:pointer;border:none;background:transparent;
+  color:var(--text-secondary);padding:6px;border-radius:10px;
+  display:grid;place-items:center;
+  transition:background .15s ease,color .15s ease;
+}
+.notify-panel-gear:hover{background:rgba(255,255,255,.06);color:var(--text-primary)}
+.notify-panel-filters{
+  display:flex;flex-wrap:nowrap;gap:6px;padding:10px 12px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  scrollbar-width:none;
+}
+.notify-panel-filters::-webkit-scrollbar{display:none}
+.notify-pill{
+  appearance:none;cursor:pointer;font:inherit;flex-shrink:0;
+  padding:7px 13px;border-radius:999px;font-size:12px;font-weight:600;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.03);color:var(--text-primary);
+  transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.notify-pill:hover{border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.06)}
+.notify-pill.is-active{
+  background:#fff;color:#0b0e14;border-color:#fff;
+  box-shadow:0 2px 8px rgba(255,255,255,.12);
+}
+.notify-panel-toolbar{
+  padding:6px 14px 8px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.notify-mark-all{
+  appearance:none;cursor:pointer;font:inherit;background:none;border:none;
+  font-size:11.5px;font-weight:600;color:#94a3b8;padding:4px 0;
+  transition:color .15s ease;
+}
+.notify-mark-all:hover:not(:disabled){color:#c4b5fd}
+.notify-mark-all:disabled{opacity:.45;cursor:not-allowed}
+.notify-panel-list{
+  flex:1;overflow-y:auto;min-height:120px;
+}
+.notify-panel-empty{padding:20px 16px;text-align:center}
+.notify-item{
+  width:100%;display:flex;gap:12px;align-items:flex-start;text-align:left;
+  border:none;cursor:pointer;padding:12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  background:transparent;
+  transition:background .15s ease;
+}
+.notify-item:hover{background:rgba(255,255,255,.04)}
+.notify-item.is-unread{background:rgba(167,139,250,.07)}
+.notify-item-thumb{
+  width:40px;height:40px;border-radius:9px;flex-shrink:0;
+  display:grid;place-items:center;font-size:14px;font-weight:800;
+  color:#0b0e14;
+}
+.notify-item-thumb--investing{
+  background:linear-gradient(135deg,#34d399,#059669);
+}
+.notify-item-thumb--social{
+  background:linear-gradient(135deg,#38bdf8,#6366f1);
+}
+.notify-item-thumb--marketing{
+  background:linear-gradient(135deg,#f472b6,#a855f7);
+}
+.notify-item-body{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.notify-item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.notify-item-title{font-size:13px;font-weight:600;color:var(--text-primary);line-height:1.35}
+.notify-item.is-unread .notify-item-title{color:var(--text-primary)}
+.notify-item-badge{font-size:9px !important;padding:2px 6px !important}
+.notify-item-message{
+  font-size:12px;line-height:1.45;color:var(--text-secondary);
+  white-space:pre-wrap;word-break:break-word;
+}
+.notify-item-time{font-size:11px;color:var(--text-muted,#64748b);margin-top:2px}
+
+/* Topnav tier button (linked to /pricing) */
+.hermes-topnav-tier--clickable{
+  appearance:none;cursor:pointer;font:inherit;
+  border:1px solid rgba(167,139,250,.4);
+  transition:background .15s ease,border-color .15s ease;
+  height:30px;padding:0 12px;
+}
+.hermes-topnav-tier--clickable:hover{background:rgba(167,139,250,.26);border-color:rgba(167,139,250,.6);color:#ddd6fe}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CURRENCY SELECTOR (top nav)
+   ════════════════════════════════════════════════════════════════════════════ */
+.hermes-currency{position:relative}
+.hermes-currency-trigger{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;gap:6px;
+  height:30px;padding:0 12px;border-radius:999px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text-primary);
+  font-size:12px;font-weight:600;letter-spacing:.04em;
+  transition:background .15s ease,border-color .15s ease;
+}
+.hermes-currency-trigger:hover,.hermes-currency-trigger.is-open{
+  background:rgba(167,139,250,.16);
+  border-color:rgba(167,139,250,.48);
+}
+.hermes-currency-code{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;letter-spacing:.04em;font-size:12px}
+.hermes-currency-chevron{font-size:9px;opacity:.7}
+
+.hermes-currency-menu{
+  position:absolute;top:calc(100% + 8px);right:0;z-index:120;
+  min-width:240px;
+  background:rgba(13,16,24,.96);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  box-shadow:0 16px 44px rgba(0,0,0,.5);
+  padding:6px;
+  display:flex;flex-direction:column;gap:2px;
+  backdrop-filter:blur(20px) saturate(140%);
+}
+.hermes-currency-menu-head{
+  padding:8px 10px 4px;font-size:10.5px;color:var(--text-muted);
+  letter-spacing:.06em;text-transform:uppercase;font-weight:600;
+}
+.hermes-currency-item{
+  appearance:none;cursor:pointer;font:inherit;width:100%;
+  display:grid;grid-template-columns:54px 1fr auto;align-items:center;gap:12px;
+  padding:9px 12px;border-radius:8px;border:none;background:transparent;
+  color:var(--text-primary);text-align:left;
+  transition:background .12s ease;
+}
+.hermes-currency-item:hover{background:rgba(255,255,255,.05)}
+.hermes-currency-item.is-active{background:rgba(167,139,250,.14)}
+.hermes-currency-item .hermes-currency-code-mono{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:13px;font-weight:700;color:var(--text-primary);letter-spacing:.04em;
+}
+.hermes-currency-item.is-active .hermes-currency-code-mono{color:#c4b5fd}
+.hermes-currency-name{font-size:13px;font-weight:500;color:var(--text-secondary)}
+.hermes-currency-tick{font-size:13px;color:#a78bfa;font-weight:700}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   DISCOVER — investment opportunities & community feed
+   ════════════════════════════════════════════════════════════════════════════ */
+.hermes-discover{display:flex;flex-direction:column;gap:32px}
+
+.hermes-discover-tabs{
+  display:flex;gap:24px;align-items:center;justify-content:center;
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  overflow-x:auto;scrollbar-width:none;
+}
+.hermes-discover-tabs::-webkit-scrollbar{display:none}
+.hermes-discover-tab{
+  appearance:none;cursor:pointer;font:inherit;
+  background:transparent;border:none;
+  color:var(--text-secondary);
+  font-size:13px;font-weight:500;
+  padding:10px 4px;
+  position:relative;white-space:nowrap;
+  transition:color .15s ease;
+}
+.hermes-discover-tab:hover{color:var(--text-primary)}
+.hermes-discover-tab.is-active{color:var(--text-primary);font-weight:600}
+.hermes-discover-tab.is-active::after{
+  content:"";position:absolute;left:0;right:0;bottom:-9px;height:2px;
+  background:linear-gradient(90deg,#a78bfa,#22d3ee);border-radius:2px;
+}
+
+.hermes-discover-section{display:flex;flex-direction:column;gap:14px}
+.hermes-discover-section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;
+}
+.hermes-discover-section-title{
+  margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em;color:var(--text-primary);
+}
+.hermes-discover-section-arrows{display:flex;gap:6px}
+.hermes-discover-arrow{
+  appearance:none;cursor:pointer;font:inherit;
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text-secondary);font-size:13px;
+  display:grid;place-items:center;
+  transition:background .15s ease;
+}
+.hermes-discover-arrow:hover{background:rgba(255,255,255,.1);color:var(--text-primary)}
+.hermes-discover-view-all{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:6px 16px;border-radius:999px;
+  background:transparent;
+  border:1px solid rgba(255,255,255,.16);
+  color:var(--text-primary);
+  font-size:12px;font-weight:600;
+  transition:background .15s ease,border-color .15s ease;
+}
+.hermes-discover-view-all:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.3)}
+
+/* Featured opportunity cards */
+.hermes-discover-features{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+}
+@media (max-width:1199px){.hermes-discover-features{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:599px){.hermes-discover-features{grid-template-columns:1fr}}
+
+.hermes-discover-feature{
+  position:relative;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:16px;
+  min-height:170px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  cursor:pointer;
+  transition:transform .18s ease,box-shadow .18s ease;
+  overflow:hidden;
+}
+.hermes-discover-feature:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(0,0,0,.4)}
+.hermes-discover-feature-badge{
+  align-self:flex-start;
+  padding:4px 8px;border-radius:4px;
+  font-size:9.5px;font-weight:700;letter-spacing:.08em;
+}
+.hermes-discover-feature-body{display:flex;flex-direction:column;gap:6px;margin-top:auto}
+.hermes-discover-feature-title{font-size:18px;font-weight:700;letter-spacing:-0.01em;color:var(--text-primary)}
+.hermes-discover-feature-stats{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:6px}
+.hermes-discover-feature-return strong{font-size:18px;font-weight:700;color:#22c55e;display:block;line-height:1.1}
+.hermes-discover-feature-meta strong{font-size:18px;font-weight:700;color:var(--text-primary);display:block;line-height:1.1}
+.hermes-discover-feature .is-pos{color:#22c55e}
+.hermes-discover-feature .is-neg{color:#ef4444}
+
+/* Daily Movers */
+.hermes-discover-movers{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+}
+@media (max-width:899px){.hermes-discover-movers{grid-template-columns:1fr}}
+.hermes-discover-movers-col{
+  display:flex;flex-direction:column;
+  border-radius:14px;
+  background:rgba(13,16,24,.6);
+  border:1px solid rgba(255,255,255,.06);
+  overflow:hidden;
+}
+
+.hermes-mover-row{
+  display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:12px;
+  padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .15s ease;
+}
+.hermes-mover-row:last-child{border-bottom:0}
+.hermes-mover-row:hover{background:rgba(255,255,255,.03)}
+.hermes-mover-row.is-up-hero{background:linear-gradient(90deg,rgba(34,197,94,.18),rgba(34,197,94,.02))}
+.hermes-mover-row.is-down-hero{background:linear-gradient(90deg,rgba(239,68,68,.18),rgba(239,68,68,.02))}
+.hermes-mover-icon{
+  width:32px;height:32px;border-radius:8px;
+  display:grid;place-items:center;
+  font-size:11px;font-weight:700;letter-spacing:.04em;
+}
+.hermes-mover-info{display:flex;flex-direction:column;gap:1px;min-width:0}
+.hermes-mover-sym{font-size:13px;font-weight:600;color:var(--text-primary)}
+.hermes-mover-info span{
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hermes-mover-change{font-family:'JetBrains Mono','SF Mono',monospace;font-size:14px;font-weight:600}
+.hermes-mover-change.is-pos{color:#22c55e}
+.hermes-mover-change.is-neg{color:#ef4444}
+
+/* Alpha portfolios */
+.hermes-discover-alpha{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media (max-width:1199px){.hermes-discover-alpha{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:599px){.hermes-discover-alpha{grid-template-columns:1fr}}
+
+.hermes-discover-alpha-card{
+  position:relative;
+  border-radius:14px;
+  min-height:230px;
+  padding:16px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,.08);
+  overflow:hidden;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.hermes-discover-alpha-card::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.55) 100%);
+  pointer-events:none;
+}
+.hermes-discover-alpha-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(0,0,0,.45)}
+.hermes-discover-alpha-body{position:relative;z-index:2;display:flex;flex-direction:column;gap:2px}
+.hermes-discover-alpha-name{font-size:17px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.45)}
+.hermes-discover-alpha-style{font-size:11px;color:rgba(255,255,255,.85);font-weight:500}
+.hermes-discover-alpha-foot{
+  position:relative;z-index:2;
+  display:flex;align-items:flex-end;justify-content:space-between;
+}
+.hermes-discover-alpha-return strong{display:block;font-size:18px;font-weight:800;color:#22c55e;line-height:1;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+.hermes-discover-alpha-return span{display:block;color:rgba(255,255,255,.85);font-size:11px;margin-top:2px}
+.hermes-discover-alpha-risk{
+  display:flex;flex-direction:column;align-items:center;
+  background:rgba(239,68,68,.85);
+  color:#fff;padding:4px 8px;border-radius:6px;
+  min-width:36px;
+}
+.hermes-discover-alpha-risk span{font-size:14px;font-weight:800;line-height:1}
+.hermes-discover-alpha-risk small{font-size:8.5px;font-weight:700;letter-spacing:.06em;margin-top:1px}
+
+/* By Performance table */
+.hermes-discover-table-wrap{
+  background:rgba(13,16,24,.6);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;
+  overflow:auto;
+}
+.hermes-discover-table{
+  width:100%;border-collapse:collapse;font-size:13px;min-width:780px;
+}
+.hermes-discover-table th{
+  text-align:left;padding:14px 16px;
+  font-size:11px;font-weight:600;color:var(--text-muted);
+  letter-spacing:.06em;text-transform:uppercase;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.hermes-discover-table td{
+  padding:14px 16px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  vertical-align:middle;
+}
+.hermes-discover-table tr:last-child td{border-bottom:0}
+.hermes-discover-table tr:hover td{background:rgba(255,255,255,.02)}
+.hermes-discover-table .is-pos{color:#22c55e}
+.hermes-discover-table .is-neg{color:#ef4444}
+
+.hermes-discover-coin-icon{
+  width:30px;height:30px;border-radius:50%;
+  display:grid;place-items:center;
+  font-size:13px;font-weight:700;color:#fff;
+  flex-shrink:0;
+}
+.hermes-discover-signal{
+  display:inline-block;padding:3px 10px;border-radius:999px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;
+}
+.hermes-discover-signal.is-buy{background:rgba(34,197,94,.18);color:#22c55e}
+.hermes-discover-signal.is-sell{background:rgba(239,68,68,.18);color:#ef4444}
+.hermes-discover-signal.is-hold{background:rgba(251,191,36,.18);color:#fbbf24}
+.hermes-discover-signal.is-na{background:rgba(148,163,184,.16);color:#94a3b8}
+
+/* Pro Agents Trending */
+.hermes-discover-pro-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:899px){.hermes-discover-pro-grid{grid-template-columns:1fr}}
+
+.hermes-discover-pro-tile{padding:16px;border-radius:14px}
+.hermes-discover-pro-avatar{
+  width:36px;height:36px;border-radius:50%;
+  display:grid;place-items:center;
+  font-weight:700;color:#fff;font-size:14px;
+  flex-shrink:0;
+}
+.hermes-discover-pro-name{font-size:14px;font-weight:600;color:var(--text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ONBOARDING — 3-step welcome modal (eToro-style)
+   ════════════════════════════════════════════════════════════════════════════ */
+.hermes-onb-backdrop{
+  position:fixed;inset:0;z-index:9000;
+  background:rgba(7,9,15,.78);
+  backdrop-filter:blur(10px) saturate(140%);
+  display:grid;place-items:center;
+  padding:16px;
+  animation:hermes-onb-fade .22s ease-out;
+}
+.hermes-onb-backdrop.is-closing{animation:hermes-onb-fade-out .18s ease-in forwards}
+@keyframes hermes-onb-fade{from{opacity:0}to{opacity:1}}
+@keyframes hermes-onb-fade-out{from{opacity:1}to{opacity:0}}
+
+.hermes-onb-shell{
+  width:min(420px,100%);
+  background:#0d1018;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  padding:18px 22px 22px;
+  box-shadow:0 22px 60px rgba(0,0,0,.6);
+  display:flex;flex-direction:column;gap:14px;
+  position:relative;
+}
+
+.hermes-onb-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hermes-onb-tag{
+  font-size:13px;font-weight:600;color:var(--text-primary);letter-spacing:-0.01em;
+}
+.hermes-onb-close{
+  appearance:none;cursor:pointer;font:inherit;
+  width:30px;height:30px;border-radius:50%;
+  background:transparent;border:1px solid rgba(255,255,255,.08);
+  color:var(--text-secondary);font-size:18px;line-height:1;
+  display:grid;place-items:center;
+  transition:background .15s ease,border-color .15s ease;
+}
+.hermes-onb-close:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:var(--text-primary)}
+
+.hermes-onb-progress{display:flex;gap:6px}
+.hermes-onb-progress-bar{
+  flex:1;height:3px;border-radius:2px;
+  background:rgba(255,255,255,.08);
+  transition:background .25s ease;
+}
+.hermes-onb-progress-bar.is-active{background:#fff}
+.hermes-onb-progress-bar.is-done{background:rgba(255,255,255,.4)}
+
+.hermes-onb-body{
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;
+  position:relative;padding:6px 0 4px;
+}
+.hermes-onb-arrow{
+  appearance:none;cursor:pointer;font:inherit;
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:34px;height:34px;border-radius:50%;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  color:var(--text-primary);font-size:20px;line-height:1;
+  display:grid;place-items:center;
+  transition:background .15s ease;
+  z-index:5;
+}
+.hermes-onb-arrow:hover{background:rgba(255,255,255,.16)}
+.hermes-onb-arrow.is-prev{left:-50px}
+.hermes-onb-arrow.is-next{right:-50px}
+@media (max-width:580px){
+  .hermes-onb-arrow.is-prev{left:6px}
+  .hermes-onb-arrow.is-next{right:6px}
+}
+
+.hermes-onb-title{
+  margin:6px 0 0;font-size:24px;font-weight:700;
+  letter-spacing:-0.02em;color:var(--text-primary);line-height:1.18;
+}
+.hermes-onb-desc{
+  margin:0;font-size:13.5px;color:var(--text-secondary);line-height:1.5;
+  max-width:320px;
+}
+
+.hermes-onb-illustration{
+  width:100%;
+  min-height:180px;
+  position:relative;
+  background:#000;
+  border-radius:14px;
+  overflow:hidden;
+  display:grid;place-items:center;
+  padding:18px;
+}
+
+/* Step 1: floating cards */
+.hermes-onb-card{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 12px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.08);
+  font-size:12px;font-weight:600;
+  position:absolute;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+.hermes-onb-card-1{top:24px;left:18px;width:62%}
+.hermes-onb-card-2{top:46%;right:14px;width:55%}
+.hermes-onb-card-3{bottom:14px;left:30px;width:64%}
+.hermes-onb-avatar{
+  width:24px;height:24px;border-radius:50%;
+  display:grid;place-items:center;
+  font-size:11px;font-weight:700;color:#fff;
+  flex-shrink:0;
+}
+.hermes-onb-spark{position:absolute;left:0;right:0;bottom:0;width:100%;height:60px;opacity:.7;pointer-events:none}
+
+/* Step 2: time graph with category bubbles */
+.hermes-onb-illustration.is-time{padding:0}
+.hermes-onb-time-graph{position:relative;width:100%;height:180px}
+.hermes-onb-time-graph svg{position:absolute;inset:0;width:100%;height:100%}
+.hermes-onb-bubble{
+  position:absolute;
+  display:inline-flex;align-items:center;
+  padding:4px 9px;border-radius:999px;
+  color:#fff;font-size:11px;font-weight:600;
+  box-shadow:0 4px 12px rgba(0,0,0,.4);
+  z-index:2;
+}
+.hermes-onb-bubble.is-pulse{animation:hermes-onb-pulse 2.4s ease-in-out infinite}
+@keyframes hermes-onb-pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5);transform:scale(1)}50%{box-shadow:0 0 0 10px rgba(34,197,94,0);transform:scale(1.08)}}
+
+/* Step 3: portrait illustration */
+.hermes-onb-illustration.is-transparent{padding:0;min-height:200px}
+.hermes-onb-portrait{
+  position:relative;width:100%;height:200px;
+  background:linear-gradient(180deg,#0a0d14 0%,#1a1f2e 100%);
+  display:grid;place-items:center;
+}
+.hermes-onb-portrait-glow{
+  position:absolute;width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle,rgba(34,197,94,.32) 0%,transparent 70%);
+  z-index:1;
+}
+.hermes-onb-portrait-icon{font-size:64px;z-index:2;filter:drop-shadow(0 4px 16px rgba(0,0,0,.6))}
+.hermes-onb-portrait-bubbles{position:absolute;inset:0;z-index:3}
+.hermes-onb-portrait-bubble{
+  position:absolute;
+  width:34px;height:34px;border-radius:50%;
+  display:grid;place-items:center;
+  font-weight:700;color:#fff;font-size:13px;
+  box-shadow:0 6px 18px rgba(0,0,0,.5);
+}
+
+.hermes-onb-foot{display:flex}
+.hermes-onb-cta{
+  appearance:none;cursor:pointer;font:inherit;width:100%;
+  padding:13px 20px;border-radius:999px;
+  background:linear-gradient(135deg,#22c55e 0%,#10b981 100%);
+  color:#0b0e14;font-weight:700;font-size:14px;letter-spacing:.01em;
+  border:none;
+  box-shadow:0 6px 20px rgba(34,197,94,.36);
+  transition:transform .15s ease,filter .15s ease;
+}
+.hermes-onb-cta:hover{transform:translateY(-1px);filter:brightness(1.06)}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Onboarding Progress Modal — checklist popup (replaces dashboard widget)
+   ───────────────────────────────────────────────────────────────────────── */
+.hermes-onb-progress-backdrop{
+  position:fixed;inset:0;z-index:9100;
+  background:rgba(7,9,15,.78);
+  backdrop-filter:blur(10px) saturate(140%);
+  display:grid;place-items:center;
+  padding:20px;
+  animation:hermes-onb-fade .22s ease-out;
+}
+.hermes-onb-progress-shell{
+  position:relative;
+  width:min(480px,100%);
+  background:linear-gradient(180deg,rgba(20,22,32,.96),rgba(11,13,20,.96));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:22px;
+  padding:28px 24px 22px;
+  box-shadow:0 30px 80px rgba(0,0,0,.55);
+  display:flex;flex-direction:column;gap:14px;
+  animation:hermes-onb-pop .25s cubic-bezier(.2,.85,.4,1.1);
+}
+@keyframes hermes-onb-pop{
+  from{opacity:0;transform:translateY(8px) scale(.97)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.hermes-onb-progress-close{
+  position:absolute;top:12px;right:12px;
+  appearance:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  color:var(--text-muted);cursor:pointer;font:inherit;
+  width:30px;height:30px;border-radius:999px;
+  font-size:18px;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:background .18s ease,color .18s ease,border-color .18s ease;
+}
+.hermes-onb-progress-close:hover{background:rgba(255,255,255,.08);color:var(--text-primary);border-color:rgba(255,255,255,.16)}
+
+.hermes-onb-progress-head{display:flex;flex-direction:column;gap:4px;padding-right:32px}
+.hermes-onb-progress-eyebrow{
+  font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:#a78bfa;
+}
+.hermes-onb-progress-title{
+  margin:2px 0 0;font-size:22px;font-weight:800;letter-spacing:-0.02em;line-height:1.2;
+  color:var(--text-primary);
+}
+.hermes-onb-progress-lead{
+  margin:0;font-size:13px;color:var(--text-secondary);line-height:1.5;
+}
+
+.hermes-onb-progress-bar{
+  height:4px;background:rgba(255,255,255,.05);border-radius:999px;overflow:hidden;
+  margin-top:4px;
+}
+.hermes-onb-progress-bar-fill{
+  height:100%;background:linear-gradient(90deg,#a78bfa,#22d3ee);
+  border-radius:999px;transition:width .4s ease;
+}
+.hermes-onb-progress-pct{
+  align-self:flex-end;font-size:11px;font-weight:700;color:var(--text-muted);
+  font-variant-numeric:tabular-nums;letter-spacing:.04em;
+}
+
+.hermes-onb-progress-list{
+  list-style:none;margin:6px 0 0;padding:0;
+  display:flex;flex-direction:column;gap:8px;
+}
+.hermes-onb-progress-item{
+  width:100%;appearance:none;cursor:pointer;font:inherit;
+  display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:12px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;padding:10px 12px;
+  text-align:left;color:var(--text-primary);
+  transition:background .18s ease,border-color .18s ease,transform .15s ease;
+}
+.hermes-onb-progress-item:hover:not(:disabled){
+  background:rgba(167,139,250,.07);border-color:rgba(167,139,250,.28);
+  transform:translateY(-1px);
+}
+.hermes-onb-progress-item.is-done{
+  background:rgba(16,185,129,.06);border-color:rgba(16,185,129,.18);cursor:default;
+}
+.hermes-onb-progress-item:disabled{cursor:default}
+
+.hermes-onb-progress-check{
+  width:28px;height:28px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(167,139,250,.4);color:#c4b5fd;
+  flex-shrink:0;line-height:1;
+  transition:all .18s ease;
+}
+.hermes-onb-progress-check.is-on{
+  background:linear-gradient(135deg,#10b981,#22d3ee);
+  border-color:transparent;color:#0b0d14;
+}
+
+.hermes-onb-progress-item-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hermes-onb-progress-item-body strong{font-size:13.5px;font-weight:600;color:var(--text-primary)}
+.hermes-onb-progress-item-body span{font-size:11.5px;color:var(--text-muted);line-height:1.4}
+
+.hermes-onb-progress-item-status{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:#c4b5fd;flex-shrink:0;
+}
+.hermes-onb-progress-item-status.is-done{color:#34d399}
+
+.hermes-onb-progress-foot{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  margin-top:6px;padding-top:14px;border-top:1px solid rgba(255,255,255,.05);
+}
+.hermes-onb-progress-secondary{
+  appearance:none;cursor:pointer;font:inherit;
+  background:none;border:0;color:var(--text-muted);
+  font-size:12.5px;font-weight:600;padding:8px 4px;
+  transition:color .18s ease;
+}
+.hermes-onb-progress-secondary:hover{color:var(--text-primary)}
+.hermes-onb-progress-primary{
+  appearance:none;cursor:pointer;font:inherit;
+  background:linear-gradient(135deg,#8b5cf6,#22d3ee);
+  color:#0b0d14;font-size:13px;font-weight:700;
+  padding:9px 18px;border-radius:999px;border:0;
+  box-shadow:0 6px 18px rgba(139,92,246,.32);
+  transition:transform .15s ease,filter .15s ease;
+}
+.hermes-onb-progress-primary:hover{transform:translateY(-1px);filter:brightness(1.06)}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Onboarding card on Rewards page (compact, in-page variant)
+   ───────────────────────────────────────────────────────────────────────── */
+.hermes-onb-card{display:flex;flex-direction:column;gap:14px}
+.hermes-onb-card-bar{
+  height:4px;background:rgba(255,255,255,.05);border-radius:999px;overflow:hidden;
+}
+.hermes-onb-card-bar-fill{
+  height:100%;background:linear-gradient(90deg,#a78bfa,#22d3ee);
+  border-radius:999px;transition:width .4s ease;
+}
+.hermes-onb-card-list{
+  list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;
+}
+.hermes-onb-card-item{
+  display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:10px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);
+}
+.hermes-onb-card-item.is-done{background:rgba(16,185,129,.05);border-color:rgba(16,185,129,.15)}
+.hermes-onb-card-check{
+  width:22px;height:22px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(167,139,250,.4);color:#c4b5fd;
+  font-size:11px;font-weight:700;line-height:1;
+  flex-shrink:0;
+}
+.hermes-onb-card-item.is-done .hermes-onb-card-check{
+  background:linear-gradient(135deg,#10b981,#22d3ee);
+  border-color:transparent;color:#0b0d14;
+}
+.hermes-onb-card-body{display:flex;flex-direction:column;gap:1px;min-width:0}
+.hermes-onb-card-body strong{font-size:13px;font-weight:600;color:var(--text-primary)}
+.hermes-onb-card-cta{
+  appearance:none;cursor:pointer;font:inherit;
+  background:rgba(167,139,250,.1);color:#c4b5fd;
+  border:1px solid rgba(167,139,250,.3);border-radius:999px;
+  padding:4px 12px;font-size:11px;font-weight:600;
+  transition:background .18s ease;
+}
+.hermes-onb-card-cta:hover{background:rgba(167,139,250,.18)}
+.hermes-onb-card-done{margin:0;color:#34d399}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HERMES CLUB — pricing / tiers page (eToro Club–style)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.hermes-club{
+  max-width:1080px;
+  margin:0 auto;
+  padding:32px 0 80px;
+  display:flex;flex-direction:column;gap:32px;
+}
+
+.hermes-club-hero{
+  text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:24px 16px 0;
+}
+.hermes-club-brandmark{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;color:#22c55e;letter-spacing:.04em;
+}
+.hermes-club-brand-mark{font-size:18px}
+.hermes-club-brand-name{font-size:11px;letter-spacing:.18em}
+.hermes-club-title{
+  margin:0;font-size:54px;font-weight:800;letter-spacing:-0.03em;line-height:1;
+  background:linear-gradient(135deg,#22c55e 0%,#10b981 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hermes-club-headline{
+  margin:14px 0 0;font-size:30px;font-weight:700;color:var(--text-primary);
+  letter-spacing:-0.02em;line-height:1.2;max-width:680px;
+}
+.hermes-club-sub{
+  margin:8px 0 0;font-size:15px;color:var(--text-secondary);max-width:560px;line-height:1.55;
+}
+.hermes-club-fineprint{
+  margin:14px 0 0;font-size:11.5px;color:var(--text-muted);max-width:600px;line-height:1.5;
+}
+
+.hermes-club-card{
+  background:rgba(13,16,24,.7);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:24px;
+  padding:32px clamp(20px,4vw,48px);
+  backdrop-filter:blur(18px) saturate(140%);
+  display:flex;flex-direction:column;gap:32px;
+}
+
+.hermes-club-toolbar{
+  display:flex;align-items:center;gap:12px;
+}
+.hermes-club-billing-label{
+  font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;
+}
+.hermes-club-toggle{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;gap:10px;
+  padding:6px 14px 6px 6px;border-radius:999px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  color:var(--text-primary);font-size:13px;font-weight:600;
+  transition:background .18s ease,border-color .18s ease;
+}
+.hermes-club-toggle:hover{background:rgba(255,255,255,.08)}
+.hermes-club-toggle.is-yearly{
+  background:linear-gradient(135deg,rgba(34,197,94,.18),rgba(16,185,129,.18));
+  border-color:rgba(34,197,94,.5);
+  color:#34d399;
+}
+.hermes-club-toggle-knob{
+  width:22px;height:22px;border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.4);
+  transition:transform .2s ease,background .2s ease;
+}
+.hermes-club-toggle.is-yearly .hermes-club-toggle-knob{
+  background:#22c55e;transform:translateX(2px);
+}
+
+.hermes-club-plans-grid{
+  display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:18px;align-items:stretch;
+}
+@media (max-width:899px){
+  .hermes-club-plans-grid{grid-template-columns:1fr;gap:14px}
+}
+.hermes-club-plans-spacer{
+  display:flex;align-items:flex-end;padding:0 0 20px;
+}
+.hermes-club-plans-spacer p{margin:0;line-height:1.5}
+.hermes-club-plans-spacer strong{color:var(--text-secondary)}
+
+.hermes-club-plan{
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  padding:28px 20px 22px;
+  border-radius:18px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.hermes-club-plan:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.hermes-club-plan.is-best{
+  background:linear-gradient(180deg,rgba(167,139,250,.12),rgba(139,92,246,.06) 60%,rgba(255,255,255,.02));
+  border-color:rgba(167,139,250,.45);
+  box-shadow:0 0 0 1px rgba(167,139,250,.2),0 16px 40px rgba(139,92,246,.18);
+}
+.hermes-club-plan.is-current{outline:2px solid rgba(34,197,94,.4)}
+
+.hermes-club-best-pill{
+  position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+  padding:5px 12px;border-radius:999px;
+  font-size:10px;font-weight:700;letter-spacing:.06em;color:#0b0e14;
+  background:linear-gradient(135deg,#c4b5fd,#a78bfa);
+  box-shadow:0 4px 14px rgba(167,139,250,.5);
+}
+
+.hermes-club-plan-name{
+  margin:0;font-size:22px;font-weight:700;letter-spacing:-0.01em;
+}
+.hermes-club-plan-name.is-pro{color:#22c55e}
+.hermes-club-plan-name.is-elite{color:#c4b5fd}
+
+.hermes-club-plan-price{
+  display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;
+}
+.hermes-club-price-strike{
+  font-size:14px;color:var(--text-muted);text-decoration:line-through;
+}
+.hermes-club-price{
+  margin:2px 0 0;font-size:30px;font-weight:800;color:var(--text-primary);
+  letter-spacing:-0.02em;line-height:1;
+  display:inline-flex;align-items:flex-end;gap:2px;
+  font-family:'Plus Jakarta Sans','Inter',sans-serif;
+}
+.hermes-club-price-currency{font-size:18px;font-weight:600;margin-right:1px}
+.hermes-club-price-period{font-size:14px;font-weight:500;color:var(--text-secondary);margin-left:4px}
+.hermes-club-price-billed{font-size:11px;color:var(--text-muted);margin-top:2px}
+
+.hermes-club-cta{
+  appearance:none;cursor:pointer;font:inherit;width:100%;
+  padding:11px 14px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.18);
+  background:transparent;color:var(--text-primary);
+  font-size:13px;font-weight:600;letter-spacing:.01em;
+  transition:transform .15s ease,background .15s ease,border-color .15s ease,box-shadow .15s ease,filter .15s ease;
+}
+.hermes-club-cta:hover:not(:disabled){background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.3)}
+.hermes-club-cta.is-best{
+  background:linear-gradient(135deg,#22c55e 0%,#10b981 100%);
+  border-color:transparent;color:#0b0e14;font-weight:700;
+  box-shadow:0 6px 18px rgba(34,197,94,.34);
+}
+.hermes-club-cta.is-best:hover:not(:disabled){filter:brightness(1.05);transform:translateY(-1px)}
+.hermes-club-cta.is-outline{background:transparent;color:var(--text-primary)}
+.hermes-club-cta:disabled{opacity:.55;cursor:not-allowed}
+.hermes-club-cta.is-current{
+  background:rgba(34,197,94,.16);color:#34d399;border-color:rgba(34,197,94,.4);
+}
+
+.hermes-club-section-heading{
+  margin:8px 0 0;font-size:18px;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em;
+  padding-top:24px;border-top:1px solid rgba(255,255,255,.06);
+}
+
+.hermes-club-benefits{
+  display:flex;flex-direction:column;gap:0;
+}
+.hermes-club-benefit-row{
+  display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:18px;
+  align-items:center;
+  padding:18px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.hermes-club-benefits.is-three-col .hermes-club-benefit-row{
+  grid-template-columns:1.7fr 1fr 1fr 1fr;
+}
+.hermes-club-benefit-row:last-child{border-bottom:0}
+
+.hermes-club-benefit-head{
+  padding:10px 0;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
+.hermes-club-benefit-head-label{
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);
+}
+.hermes-club-benefit-head-tier{
+  display:inline-block;
+  padding:4px 10px;border-radius:999px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--text-secondary);
+}
+.hermes-club-benefit-head-tier.is-pro{
+  background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.34);color:#4ade80;
+}
+.hermes-club-benefit-head-tier.is-elite{
+  background:rgba(167,139,250,.16);border-color:rgba(167,139,250,.4);color:#c4b5fd;
+}
+
+@media (max-width:899px){
+  .hermes-club-benefit-row{grid-template-columns:1fr;gap:8px;padding:14px 0}
+  .hermes-club-benefits.is-three-col .hermes-club-benefit-row{grid-template-columns:1fr}
+  .hermes-club-benefit-head{display:none}
+}
+.hermes-club-benefit-info{
+  display:flex;align-items:flex-start;gap:14px;min-width:0;
+}
+.hermes-club-benefit-icon{
+  width:28px;height:28px;flex-shrink:0;color:var(--text-secondary);
+  display:grid;place-items:center;
+}
+.hermes-club-benefit-icon svg{width:24px;height:24px}
+.hermes-club-benefit-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hermes-club-benefit-copy strong{font-size:14px;font-weight:600;color:var(--text-primary)}
+.hermes-club-benefit-copy span{line-height:1.45}
+.hermes-club-benefit-value{
+  text-align:center;font-size:14px;font-weight:600;color:var(--text-primary);
+  font-family:'Plus Jakarta Sans','Inter',sans-serif;
+}
+.hermes-club-benefit-value.is-basic{color:var(--text-muted);font-weight:500}
+.hermes-club-benefit-value.is-elite{color:var(--text-primary)}
+.hermes-club-benefit-value.is-emph{color:#c4b5fd;font-weight:700}
+.hermes-club-benefit-value svg{display:inline-block;vertical-align:middle}
+.hermes-club-benefit-dash{color:var(--text-muted);font-weight:500}
+@media (max-width:899px){
+  .hermes-club-benefit-value{text-align:left;padding-left:42px}
+  .hermes-club-benefit-value.is-basic::before{content:"BASIC: ";color:var(--text-muted);font-weight:500;margin-right:6px}
+  .hermes-club-benefit-value:not(.is-basic):not(.is-elite)::before{content:"PRO: ";color:#4ade80;font-weight:600;margin-right:6px}
+  .hermes-club-benefit-value.is-elite::before{content:"ELITE: ";color:#c4b5fd;font-weight:600;margin-right:6px}
+}
+
+.hermes-club-asterisk{
+  margin-top:-12px;
+  padding:0 0 4px;
+}
+
+.hermes-club-cta-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:18px;
+  margin-left:auto;width:min(100%,560px);
+}
+@media (max-width:899px){
+  .hermes-club-cta-row{grid-template-columns:1fr;width:100%;margin:0}
+}
+
+.hermes-club-advantages-heading{
+  margin:32px 0 0;font-size:22px;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em;
+}
+.hermes-club-advantages-lead{
+  margin:6px 0 0;line-height:1.5;
+  padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.hermes-club-advantages{
+  display:grid;grid-template-columns:1fr;gap:0;
+  background:rgba(13,16,24,.7);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:20px;
+  padding:8px clamp(18px,3.5vw,32px);
+  backdrop-filter:blur(18px) saturate(140%);
+}
+
+.hermes-club-advantage{
+  display:grid;grid-template-columns:42px 1fr;gap:16px;
+  padding:18px 0;align-items:flex-start;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.hermes-club-advantage:last-child{border-bottom:0}
+.hermes-club-advantage-icon{
+  width:32px;height:32px;color:var(--text-secondary);
+  display:grid;place-items:center;
+}
+.hermes-club-advantage-icon svg{width:24px;height:24px}
+.hermes-club-advantage-copy{display:flex;flex-direction:column;gap:4px}
+.hermes-club-advantage-copy strong{font-size:14px;font-weight:600;color:var(--text-primary)}
+.hermes-club-advantage-copy p{margin:0;line-height:1.5}
+
+.hermes-club-disclaimer{
+  text-align:center;line-height:1.55;max-width:760px;margin:0 auto;padding:0 16px;
+}
+.hermes-club-disclaimer a{color:var(--text-secondary);text-decoration:underline}
+.hermes-club-disclaimer a:hover{color:var(--text-primary)}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   INVITE — referral / rewards (eToro-style)
+   ════════════════════════════════════════════════════════════════════════════ */
+.hermes-invite-hero{
+  background:rgba(17,20,28,.85);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  padding:clamp(20px,4vw,32px);
+  backdrop-filter:blur(18px) saturate(140%);
+}
+.hermes-invite-hero-grid{
+  display:grid;grid-template-columns:1fr minmax(140px,200px);gap:28px;align-items:center;
+}
+@media (max-width:699px){.hermes-invite-hero-grid{grid-template-columns:1fr}}
+.hermes-invite-title{
+  margin:0 0 10px;font-size:clamp(22px,3vw,28px);font-weight:700;
+  letter-spacing:-0.02em;color:var(--text-primary);line-height:1.2;
+}
+.hermes-invite-lead{margin:0;font-size:14px;line-height:1.55;color:var(--text-secondary)}
+.hermes-invite-lead strong{color:#34d399;font-weight:600}
+.hermes-invite-label{
+  margin:18px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);
+}
+.hermes-invite-link-row{
+  display:flex;gap:0;align-items:stretch;
+  border-radius:999px;overflow:hidden;
+  border:1px solid rgba(34,197,94,.35);
+  background:rgba(6,78,59,.35);
+  max-width:100%;
+}
+.hermes-invite-link-field{
+  flex:1;min-width:0;padding:12px 16px;display:flex;align-items:center;
+}
+.hermes-invite-link-text{
+  font-family:'JetBrains Mono','SF Mono',monospace;font-size:12px;color:#ecfdf5;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hermes-invite-copy{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:12px 22px;
+  background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);
+  color:#06281a;font-weight:700;font-size:13px;letter-spacing:.02em;
+  border:none;flex-shrink:0;
+  transition:filter .15s ease,transform .15s ease;
+}
+.hermes-invite-copy:hover:not(:disabled){filter:brightness(1.06)}
+.hermes-invite-copy:disabled{opacity:.5;cursor:not-allowed}
+.hermes-invite-disclaimer{
+  margin:14px 0 0;font-size:11px;line-height:1.45;color:var(--text-muted);
+}
+.hermes-invite-terms{color:#34d399;text-decoration:underline;font-weight:600}
+.hermes-invite-terms:hover{color:#6ee7b7}
+.hermes-invite-stats{
+  margin:16px 0 0;font-size:13px;color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+}
+.hermes-invite-bonus-pill{
+  display:inline-flex;padding:4px 10px;border-radius:999px;
+  font-size:11px;font-weight:600;
+  background:rgba(167,139,250,.18);color:#c4b5fd;border:1px solid rgba(167,139,250,.35);
+}
+
+.hermes-invite-hero-art{display:flex;justify-content:center;align-items:center}
+.hermes-invite-iso{position:relative;width:140px;height:140px}
+.hermes-invite-iso-base{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  width:110px;height:44px;border-radius:10px;
+  background:linear-gradient(180deg,rgba(34,197,94,.35),rgba(6,78,59,.6));
+  border:1px solid rgba(34,197,94,.5);
+  box-shadow:0 12px 28px rgba(0,0,0,.45);
+}
+.hermes-invite-iso-figure{
+  position:absolute;bottom:52px;left:50%;transform:translateX(-50%);
+  width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#86efac,#22c55e);
+  box-shadow:0 8px 20px rgba(34,197,94,.45);
+  animation:hermes-invite-drop 3s ease-in-out infinite;
+}
+@keyframes hermes-invite-drop{
+  0%,100%{transform:translateX(-50%) translateY(0)}
+  50%{transform:translateX(-50%) translateY(-8px)}
+}
+
+.hermes-invite-how{
+  background:rgba(17,20,28,.75);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  padding:clamp(20px,4vw,28px);
+}
+.hermes-invite-how-title{margin:0 0 8px;font-size:20px;font-weight:700;color:var(--text-primary)}
+.hermes-invite-how-lead{margin:0 0 22px;font-size:13px;color:var(--text-secondary);line-height:1.5}
+.hermes-invite-steps{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+}
+@media (max-width:699px){.hermes-invite-steps{flex-direction:column}}
+.hermes-invite-step{
+  flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:0 8px;
+}
+.hermes-invite-step-icon{
+  width:52px;height:52px;border-radius:50%;
+  display:grid;place-items:center;
+  border:2px solid rgba(34,197,94,.55);color:#22c55e;
+  background:rgba(34,197,94,.12);
+}
+.hermes-invite-step strong{font-size:14px;color:var(--text-primary)}
+.hermes-invite-dash{
+  flex:0 0 40px;height:2px;margin-top:26px;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.15) 0 6px,transparent 6px 12px);
+  opacity:.7;
+}
+@media (max-width:699px){
+  .hermes-invite-dash{width:2px;height:24px;margin:0 auto;background:repeating-linear-gradient(180deg,rgba(255,255,255,.15) 0 6px,transparent 6px 12px)}
+}
+
+.hermes-invite-footer-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:8px 0 24px}
+.hermes-invite-ghost{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:10px 18px;border-radius:999px;
+  background:transparent;border:1px solid rgba(255,255,255,.14);
+  color:var(--text-secondary);font-size:13px;font-weight:600;
+}
+.hermes-invite-ghost:hover{color:var(--text-primary);border-color:rgba(255,255,255,.28)}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   REWARDS — loyalty / achievements hub
+   ════════════════════════════════════════════════════════════════════════════ */
+.hermes-rewards{display:flex;flex-direction:column;gap:22px}
+
+.hermes-rewards-summary{
+  display:grid;grid-template-columns:1.4fr 1fr;gap:0;
+  background:rgba(17,20,28,.85);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  overflow:hidden;
+  backdrop-filter:blur(18px) saturate(140%);
+}
+@media (max-width:899px){.hermes-rewards-summary{grid-template-columns:1fr}}
+
+.hermes-rewards-summary-main{
+  padding:clamp(20px,3.5vw,30px);
+  display:flex;flex-direction:column;gap:10px;
+  background:radial-gradient(circle at 0% 0%,rgba(167,139,250,.16),transparent 55%),
+             radial-gradient(circle at 100% 100%,rgba(34,197,94,.12),transparent 55%);
+}
+.hermes-rewards-tier-pill{
+  align-self:flex-start;
+  padding:5px 12px;border-radius:999px;
+  font-size:10.5px;font-weight:700;letter-spacing:.08em;
+  background:rgba(167,139,250,.18);
+  border:1px solid rgba(167,139,250,.4);
+  color:#c4b5fd;
+}
+.hermes-rewards-points{
+  font-size:clamp(38px,5vw,52px);font-weight:800;color:var(--text-primary);
+  letter-spacing:-0.02em;line-height:1;display:inline-flex;align-items:flex-end;gap:6px;
+  margin-top:6px;
+}
+.hermes-rewards-points-unit{font-size:14px;font-weight:600;color:var(--text-muted);margin-bottom:8px}
+.hermes-rewards-points-lead{margin:0;font-size:13px;line-height:1.5;color:var(--text-secondary);max-width:480px}
+
+.hermes-rewards-summary-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px;
+}
+.hermes-rewards-stat{
+  display:flex;flex-direction:column;gap:2px;
+  padding:12px 14px;border-radius:12px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);
+}
+.hermes-rewards-stat strong{font-size:18px;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em}
+
+.hermes-rewards-perks{
+  padding:clamp(20px,3.5vw,30px);
+  border-left:1px solid rgba(255,255,255,.05);
+  display:flex;flex-direction:column;gap:12px;
+  background:rgba(11,14,20,.6);
+}
+@media (max-width:899px){.hermes-rewards-perks{border-left:none;border-top:1px solid rgba(255,255,255,.05)}}
+.hermes-rewards-perks-title{margin:0;font-size:14px;font-weight:600;color:var(--text-primary);letter-spacing:.02em}
+.hermes-rewards-perk-list{
+  list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;
+}
+.hermes-rewards-perk-list li{
+  display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary);line-height:1.45;
+}
+.hermes-rewards-perk-check{
+  flex-shrink:0;width:18px;height:18px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(34,197,94,.16);color:#22c55e;
+  font-size:10px;font-weight:700;margin-top:1px;
+}
+
+.hermes-rewards-card{
+  background:rgba(17,20,28,.7);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:16px;
+  padding:clamp(18px,3vw,24px);
+  display:flex;flex-direction:column;gap:14px;
+}
+.hermes-rewards-card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.hermes-rewards-card-head h2{
+  margin:0;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:var(--text-primary);
+}
+.hermes-rewards-link{
+  appearance:none;cursor:pointer;font:inherit;
+  background:transparent;border:none;color:#c4b5fd;
+  font-size:12px;font-weight:600;
+}
+.hermes-rewards-link:hover{color:#a78bfa}
+
+.hermes-rewards-badges-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+}
+@media (max-width:899px){.hermes-rewards-badges-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:499px){.hermes-rewards-badges-grid{grid-template-columns:1fr}}
+
+.hermes-rewards-badge{
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;
+  padding:18px 14px;border-radius:14px;
+  background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.05);
+  transition:transform .18s ease,border-color .18s ease;
+}
+.hermes-rewards-badge.is-earned{border-color:rgba(167,139,250,.3)}
+.hermes-rewards-badge.is-locked{opacity:.7}
+.hermes-rewards-badge:hover{transform:translateY(-2px)}
+.hermes-rewards-badge-icon{
+  width:54px;height:54px;border-radius:50%;
+  display:grid;place-items:center;
+  font-size:24px;
+  border:1px solid rgba(255,255,255,.06);
+}
+.hermes-rewards-badge strong{font-size:13px;color:var(--text-primary)}
+.hermes-rewards-badge-status{
+  margin-top:auto;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 10px;border-radius:999px;
+  color:var(--text-muted);background:rgba(255,255,255,.04);
+}
+.hermes-rewards-badge-status.is-earned{background:rgba(34,197,94,.15);color:#22c55e}
+
+.hermes-rewards-referral{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+}
+@media (max-width:699px){.hermes-rewards-referral{grid-template-columns:1fr}}
+.hermes-rewards-referral-stat{
+  display:flex;flex-direction:column;gap:4px;
+  padding:14px 16px;border-radius:12px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);
+}
+.hermes-rewards-referral-stat strong{font-size:16px;color:var(--text-primary);font-weight:700}
+.hermes-rewards-referral-stat strong.is-pos{color:#22c55e}
+
+.hermes-rewards-progress{
+  width:100%;height:8px;border-radius:999px;
+  background:rgba(255,255,255,.05);
+  overflow:hidden;
+}
+.hermes-rewards-progress-fill{
+  height:100%;border-radius:999px;
+  background:linear-gradient(90deg,#a78bfa,#22d3ee);
+  transition:width .4s ease;
+}
+.hermes-rewards-referral-hint{margin:0;line-height:1.5}
+.hermes-rewards-referral-hint strong{color:#34d399;font-weight:600}
+
+.hermes-rewards-quests{display:flex;flex-direction:column;gap:0}
+.hermes-rewards-quest{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;
+  padding:14px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.hermes-rewards-quest:last-child{border-bottom:0}
+.hermes-rewards-quest-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:grid;place-items:center;font-size:22px;
+  background:rgba(167,139,250,.14);
+  border:1px solid rgba(167,139,250,.3);
+}
+.hermes-rewards-quest-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hermes-rewards-quest-body strong{font-size:14px;color:var(--text-primary)}
+.hermes-rewards-quest-body span{line-height:1.4}
+.hermes-rewards-quest-side{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.hermes-rewards-quest-points{
+  font-size:13px;font-weight:700;color:#34d399;
+  padding:4px 10px;border-radius:999px;
+  background:rgba(34,197,94,.14);
+  border:1px solid rgba(34,197,94,.32);
+}
+.hermes-rewards-quest-cta{
+  appearance:none;cursor:pointer;font:inherit;
+  padding:7px 14px;border-radius:999px;
+  background:transparent;border:1px solid rgba(255,255,255,.16);
+  color:var(--text-primary);font-size:12px;font-weight:600;
+  transition:background .15s ease,border-color .15s ease;
+}
+.hermes-rewards-quest-cta:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.3)}
+@media (max-width:599px){
+  .hermes-rewards-quest{grid-template-columns:auto 1fr}
+  .hermes-rewards-quest-side{grid-column:1 / -1;justify-content:flex-end}
+}
+
+.hermes-rewards-disclaimer{
+  text-align:center;line-height:1.55;color:var(--text-muted);max-width:760px;margin:0 auto;padding:0 16px 12px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MOST TRENDING BANNER — auto-rotating carousel of top marketplace agents
+   ════════════════════════════════════════════════════════════════════════════ */
+.hermes-trending{
+  display:flex;flex-direction:column;gap:14px;
+}
+.hermes-trending-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.hermes-trending-title{
+  margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;color:var(--text-primary);
+}
+.hermes-trending-lead{
+  margin:2px 0 0;font-size:12.5px;color:var(--text-muted);
+}
+.hermes-trending-nav{display:flex;gap:6px}
+.hermes-trending-nav button{
+  width:32px;height:32px;border-radius:999px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+  color:var(--text-secondary);cursor:pointer;
+  display:grid;place-items:center;font-size:18px;line-height:1;
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.hermes-trending-nav button:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:var(--text-primary)}
+
+.hermes-trending-track{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;
+  align-items:stretch;
+}
+/* Solo mode — single full-width card that fades in/out as the banner
+   rotates through the top 5 assets. */
+.hermes-trending-track:has(.hermes-trending-card--solo){
+  display:block;
+}
+.hermes-trending-card--solo{
+  width:100%;min-height:180px;
+}
+@keyframes hermes-trending-fade{
+  0%{opacity:0;transform:translateY(6px) scale(.99)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.hermes-trending-card.is-fade-in{
+  animation:hermes-trending-fade .55s ease-out both;
+}
+
+.hermes-trending-card{
+  position:relative;
+  appearance:none;font:inherit;cursor:pointer;text-align:left;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;
+  background:
+    var(--card-grad, linear-gradient(135deg,rgba(99,102,241,.4),rgba(34,211,238,.35))),
+    rgba(13,15,23,.85);
+  background-blend-mode:overlay,normal;
+  padding:14px 16px 12px;
+  display:flex;flex-direction:column;gap:8px;
+  min-height:160px;
+  color:var(--text-primary);
+  overflow:hidden;
+  isolation:isolate;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.hermes-trending-card::before{
+  content:"";
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(13,15,23,.15) 0%,rgba(13,15,23,.65) 100%);
+  z-index:-1;border-radius:inherit;
+}
+.hermes-trending-card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(167,139,250,.35);
+  box-shadow:0 14px 40px rgba(99,102,241,.18);
+}
+.hermes-trending-card.is-skeleton{opacity:.5;cursor:default}
+.hermes-trending-card.is-skeleton:hover{transform:none;box-shadow:none}
+
+.hermes-trending-card-tag{
+  position:absolute;top:10px;right:10px;
+  padding:3px 9px;border-radius:999px;
+  background:rgba(13,15,23,.75);
+  border:1px solid rgba(255,255,255,.14);
+  font-size:10px;font-weight:700;letter-spacing:.08em;color:#e0e7ff;
+}
+.hermes-trending-card-head{
+  display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+}
+.hermes-trending-card-symbol{
+  font-family:'JetBrains Mono', ui-monospace, monospace;
+  font-size:18px;font-weight:800;letter-spacing:-.01em;color:var(--text-primary);
+}
+.hermes-trending-card-cat{
+  padding:2px 8px;border-radius:999px;
+  background:rgba(13,15,23,.7);
+  border:1px solid rgba(255,255,255,.12);
+  font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--text-secondary);
+  text-transform:uppercase;
+}
+.hermes-trending-card-name{
+  font-size:13px;color:var(--text-secondary);font-weight:500;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.hermes-trending-card-stats{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.hermes-trending-card-stats .mono{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.hermes-trending-card-spark{margin-left:auto;width:120px;height:36px;flex-shrink:0}
+.hermes-trending-card-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:auto;
+}
+.hermes-trending-card-cta{
+  appearance:none;cursor:pointer;font:inherit;
+  display:inline-flex;align-items:center;
+  padding:5px 11px;border-radius:999px;
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);
+  color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.08em;
+  transition:background .15s ease,border-color .15s ease;
+}
+.hermes-trending-card-cta:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.32)}
+
+.hermes-trending-dots{
+  display:flex;justify-content:center;gap:6px;margin-top:2px;
+}
+.hermes-trending-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,.18);
+  border:0;cursor:pointer;
+  transition:background .15s ease,transform .15s ease;
+}
+.hermes-trending-dot.is-active{
+  background:rgba(167,139,250,.85);transform:scale(1.4);
+}
+
+@media (max-width:599px){
+  .hermes-trending-card-spark{display:none}
+  .hermes-trending-card-stats .mono{font-size:18px}
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   AGENT DETAIL MODAL — opens when a dashboard card is clicked
+   ════════════════════════════════════════════════════════════════════════════ */
+.hermes-agent-modal-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(6,8,14,.72);
+  backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  animation:hermes-modal-in .18s ease-out;
+}
+@keyframes hermes-modal-in{from{opacity:0}to{opacity:1}}
+.hermes-agent-modal{
+  width:min(880px,100%);max-height:calc(100vh - 48px);overflow:auto;
+  background:color-mix(in srgb,var(--bg-elevated) 96%, transparent);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  box-shadow:0 28px 72px rgba(0,0,0,.55);
+  padding:24px;
+  display:flex;flex-direction:column;gap:18px;
+}
+.hermes-agent-modal-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+}
+.hermes-agent-modal-symbol{
+  display:block;font-size:24px;font-weight:800;letter-spacing:-.02em;
+  font-family:'JetBrains Mono', ui-monospace, monospace;
+  color:var(--text-primary);
+}
+.hermes-agent-modal-strategy{
+  display:block;color:var(--text-muted);font-size:13px;margin-top:2px;
+}
+.hermes-agent-modal-head-pills{
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.hermes-agent-modal-status{
+  font-size:10.5px;font-weight:700;letter-spacing:.1em;padding:5px 10px;border-radius:999px;
+}
+.hermes-agent-modal-status.is-live{
+  background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.32);
+}
+.hermes-agent-modal-status.is-paused{
+  background:rgba(245,158,11,.14);color:#fbbf24;border:1px solid rgba(245,158,11,.32);
+}
+.hermes-agent-modal-pnl{
+  font-size:18px;font-weight:800;letter-spacing:-.01em;
+}
+.hermes-agent-modal-close{
+  appearance:none;background:none;border:0;cursor:pointer;
+  width:32px;height:32px;border-radius:8px;
+  color:var(--text-muted);font-size:22px;line-height:1;
+  display:grid;place-items:center;
+  transition:background .15s ease,color .15s ease;
+}
+.hermes-agent-modal-close:hover{background:rgba(255,255,255,.06);color:var(--text-primary)}
+
+.hermes-agent-modal-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  padding:14px 16px;border-radius:12px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);
+}
+.hermes-agent-modal-stats > div{display:flex;flex-direction:column;gap:2px}
+.hermes-agent-modal-stat-label{font-size:11px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase}
+.hermes-agent-modal-stats strong{font-size:16px;color:var(--text-primary)}
+@media (max-width:599px){
+  .hermes-agent-modal-stats{grid-template-columns:repeat(2,1fr)}
+}
+
+.hermes-agent-modal-chart-card{
+  padding:16px;border-radius:14px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);
+}
+.hermes-agent-modal-chart-card header{
+  display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;gap:12px;
+}
+.hermes-agent-modal-chart{width:100%;height:220px;display:block}
+
+.hermes-agent-modal-trades-card{
+  padding:16px;border-radius:14px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);
+}
+.hermes-agent-modal-trades-card header{margin-bottom:12px}
+.hermes-agent-modal-trades{display:flex;flex-direction:column;gap:6px}
+.hermes-agent-modal-trade{
+  display:grid;grid-template-columns:64px 1fr auto auto auto;gap:10px;align-items:center;
+  padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.02);
+  font-size:12.5px;
+}
+
+.hermes-agent-modal-footer{
+  display:flex;flex-wrap:wrap;gap:8px;
+}
+.hermes-pill-action.is-destructive{color:#fb7185;border-color:rgba(244,63,94,.3)}
+.hermes-pill-action.is-destructive:hover{background:rgba(244,63,94,.12);color:#fb7185;border-color:rgba(244,63,94,.5)}
+@media (max-width:599px){
+  .hermes-agent-modal{padding:18px}
+  .hermes-agent-modal-trade{grid-template-columns:56px 1fr auto;gap:8px}
+  .hermes-agent-modal-trade > .mono.text-3,.hermes-agent-modal-trade > .text-3.fs-12{display:none}
+}
+

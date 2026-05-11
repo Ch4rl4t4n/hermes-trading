@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { loginWithEmail, loginWithGoogle } from "../api/auth";
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, onGoRegister }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,8 +26,8 @@ export default function Login({ onLogin }) {
         <div className="login-tagline">Let Agents Cook</div>
 
         <div className="input-group">
-          <label className="input-label">Email</label>
-          <input type="email" className="input-field" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <label className="input-label">Email or username</label>
+          <input type="text" className="input-field" placeholder="Email or username" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
         </div>
         <div className="input-group">
           <label className="input-label">Password</label>
@@ -35,7 +35,7 @@ export default function Login({ onLogin }) {
         </div>
 
         <button className="btn" type="button" onClick={handleSubmit} disabled={loading}>
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
         <div className="auth-divider" aria-hidden="true">
           <span>or</span>
@@ -46,7 +46,16 @@ export default function Login({ onLogin }) {
         {error ? <div className="error-msg active">{error}</div> : null}
         <div className="auth-switch">
           <span>
-            New here? <a href="#">Create an account</a>
+            New here?{" "}
+            <a
+              href="/register"
+              onClick={(e) => {
+                e.preventDefault();
+                if (onGoRegister) onGoRegister();
+              }}
+            >
+              Create an account
+            </a>
           </span>
           <span>
             <a href="#">Forgot password?</a>

@@ -10,3 +10,7 @@ daily_state.json
 .DS_Store
 .env.backup
 .env
+
+# Lokálny stav watcher procesu (strojovo špecifické dátumy)
+.watcher_historical_candles_date
+.watcher_api_rate_reset_date

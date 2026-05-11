@@ -131,6 +131,7 @@ def fetch_approved_agent_by_public_id(sess: scoped_session, public_id: Any) -> O
         sess.execute(
             text(f"""
             SELECT ua.*, u.tier AS author_db_tier, u.is_admin AS author_is_admin,
+                   u.username AS author_username,
                    {_metric_subqueries()}
             FROM user_agents ua
             JOIN users u ON u.id = ua.user_id
@@ -168,6 +169,7 @@ def fetch_approved_listing_candidates(
     w = " AND ".join(where)
     sql = f"""
         SELECT ua.*, u.tier AS author_db_tier, u.is_admin AS author_is_admin,
+               u.username AS author_username,
                {_metric_subqueries()}
         FROM user_agents ua
         JOIN users u ON u.id = ua.user_id
@@ -179,6 +181,8 @@ def fetch_approved_listing_candidates(
 
 def sort_listing_rows(rows: list[dict[str, Any]], sort_key: str) -> list[dict[str, Any]]:
     sk = (sort_key or "pnl_week").strip().lower()
+    if sk == "top":
+        return sorted(rows, key=lambda r: float(r.get("win_rate") or 0.0), reverse=True)
     if sk == "pnl_month":
         return sorted(rows, key=lambda r: float(r.get("pnl_usd_month") or 0.0), reverse=True)
     if sk == "popularity":
@@ -236,6 +240,7 @@ def enrich_listing_for_api(
     return {
         "id": ua_id,
         "public_id": public_s,
+        "author_handle": str(row.get("author_username") or "author"),
         "name": row.get("name"),
         "symbol": row.get("symbol"),
         "strategy_type": row.get("strategy_type"),

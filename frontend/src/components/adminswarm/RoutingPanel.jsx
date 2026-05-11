@@ -38,16 +38,16 @@ export default function RoutingPanel({
   return (
     <article className="glass warroom-router">
       <button type="button" className="warroom-directory-toggle" onClick={() => setRouterOpen((prev) => !prev)}>
-        {routerOpen ? "▼" : "▶"} Router taskov
+        {routerOpen ? "▼" : "▶"} Task router
       </button>
       {routerOpen ? (
         <div className="warroom-router-body">
           <div className="warroom-router-grid">
             <section className="glass-2 warroom-router-panel">
-              <div className="section-title">Manuálne routovanie tasku</div>
-              <label className="fs-12 text-3">Typ tasku</label>
+              <div className="section-title">Manual task routing</div>
+              <label className="fs-12 text-3">Task type</label>
               <input className="bt-field" value={routingTaskType} onChange={(event) => setRoutingTaskType(event.target.value)} />
-              <label className="fs-12 text-3">Požadované capability</label>
+              <label className="fs-12 text-3">Required capabilities</label>
               {recommendedCapabilities.length > 0 ? (
                 <div className="row gap-1" style={{ flexWrap: "wrap", marginBottom: 6 }}>
                   {recommendedCapabilities.map((row) => (
@@ -56,7 +56,7 @@ export default function RoutingPanel({
                       type="button"
                       className={`pill ${routingCaps.includes(row.capability) ? "pill-violet" : "pill-gray"}`}
                       onClick={() => toggleCap(routingCaps, setRoutingCaps, row.capability)}
-                      title={`beží: ${row.running_agents || 0}, idle: ${row.idle_agents || 0}, load: ${row.active_tasks || 0}`}
+                      title={`running: ${row.running_agents || 0}, idle: ${row.idle_agents || 0}, load: ${row.active_tasks || 0}`}
                     >
                       {row.capability}
                     </button>
@@ -66,7 +66,7 @@ export default function RoutingPanel({
                     className="pill pill-gray"
                     onClick={() => setRoutingCaps(recommendedCapabilities.slice(0, 3).map((row) => row.capability))}
                   >
-                    Použiť top 3
+                    Use top 3
                   </button>
                 </div>
               ) : null}
@@ -91,7 +91,7 @@ export default function RoutingPanel({
                   ))}
                 </div>
               ) : null}
-              <label className="fs-12 text-3">Preferovaný swarm</label>
+              <label className="fs-12 text-3">Preferred swarm</label>
               <div className="row gap-1" style={{ flexWrap: "wrap", marginBottom: 6 }}>
                 <select
                   className="bt-field"
@@ -110,13 +110,13 @@ export default function RoutingPanel({
                     className="pill pill-gray"
                     onClick={() => setRoutingPreferredSwarm(suggestedRoutingSwarm.swarm)}
                   >
-                    Návrh: {suggestedRoutingSwarm.swarm}
+                    Suggest: {suggestedRoutingSwarm.swarm}
                   </button>
                 ) : null}
               </div>
               <div className="row gap-1" style={{ alignItems: "center", marginBottom: 6 }}>
                 <span className={`pill ${routingConfidence.level === "high" ? "pill-green" : routingConfidence.level === "medium" ? "pill-gray" : "pill-red"}`}>
-                  Istota routingu: {routingConfidence.label}
+                  Routing confidence: {routingConfidence.label}
                 </span>
                 <span className="text-3 fs-12">{routingConfidence.reason}</span>
               </div>
@@ -133,14 +133,14 @@ export default function RoutingPanel({
               <input type="range" min={1} max={10} value={routingPriority} onChange={(event) => setRoutingPriority(Number(event.target.value || 5))} />
               <label className="fs-12 text-3">Payload JSON</label>
               <textarea className="bt-field warroom-payload" value={routingPayload} onChange={(event) => setRoutingPayload(event.target.value)} />
-              <button type="button" className="share-btn" disabled={routingBusy} onClick={manualRouteNow}>Routovať teraz</button>
+              <button type="button" className="share-btn" disabled={routingBusy} onClick={manualRouteNow}>Route now</button>
             </section>
 
             <section className="glass-2 warroom-router-panel">
-              <div className="section-title">Simulovať routovanie</div>
-              <label className="fs-12 text-3">Typ tasku</label>
+              <div className="section-title">Simulate routing</div>
+              <label className="fs-12 text-3">Task type</label>
               <input className="bt-field" value={simulateTaskType} onChange={(event) => setSimulateTaskType(event.target.value)} />
-              <label className="fs-12 text-3">Požadované capability</label>
+              <label className="fs-12 text-3">Required capabilities</label>
               {recommendedCapabilities.length > 0 ? (
                 <div className="row gap-1" style={{ flexWrap: "wrap", marginBottom: 6 }}>
                   {recommendedCapabilities.map((row) => (
@@ -149,7 +149,7 @@ export default function RoutingPanel({
                       type="button"
                       className={`pill ${simulateCaps.includes(row.capability) ? "pill-violet" : "pill-gray"}`}
                       onClick={() => toggleCap(simulateCaps, setSimulateCaps, row.capability)}
-                      title={`beží: ${row.running_agents || 0}, idle: ${row.idle_agents || 0}, load: ${row.active_tasks || 0}`}
+                      title={`running: ${row.running_agents || 0}, idle: ${row.idle_agents || 0}, load: ${row.active_tasks || 0}`}
                     >
                       {row.capability}
                     </button>
@@ -159,7 +159,7 @@ export default function RoutingPanel({
                     className="pill pill-gray"
                     onClick={() => setSimulateCaps(recommendedCapabilities.slice(0, 3).map((row) => row.capability))}
                   >
-                    Použiť top 3
+                    Use top 3
                   </button>
                 </div>
               ) : null}
@@ -184,7 +184,7 @@ export default function RoutingPanel({
                   ))}
                 </div>
               ) : null}
-              <label className="fs-12 text-3">Preferovaný swarm</label>
+              <label className="fs-12 text-3">Preferred swarm</label>
               <div className="row gap-1" style={{ flexWrap: "wrap", marginBottom: 6 }}>
                 <select
                   className="bt-field"
@@ -203,24 +203,24 @@ export default function RoutingPanel({
                     className="pill pill-gray"
                     onClick={() => setSimulatePreferredSwarm(suggestedSimulateSwarm.swarm)}
                   >
-                    Návrh: {suggestedSimulateSwarm.swarm}
+                    Suggest: {suggestedSimulateSwarm.swarm}
                   </button>
                 ) : null}
               </div>
               <div className="row gap-1" style={{ alignItems: "center", marginBottom: 6 }}>
                 <span className={`pill ${simulateConfidence.level === "high" ? "pill-green" : simulateConfidence.level === "medium" ? "pill-gray" : "pill-red"}`}>
-                  Istota simulácie: {simulateConfidence.label}
+                  Simulation confidence: {simulateConfidence.label}
                 </span>
                 <span className="text-3 fs-12">{simulateConfidence.reason}</span>
               </div>
-              <button type="button" className="share-btn" disabled={routingBusy} onClick={simulateRouteNow}>Simulovať</button>
+              <button type="button" className="share-btn" disabled={routingBusy} onClick={simulateRouteNow}>Simulate</button>
               {simulateResult ? (
                 <div className="warroom-sim-result">
-                  <strong>Priradilo by sa na:</strong> {simulateResult.agent_name || "NEPRIRADENÉ"}
+                  <strong>Would assign to:</strong> {simulateResult.agent_name || "UNASSIGNED"}
                   {simulateResult.agent_id ? ` (${simulateResult.agent_id})` : ""}
                   <div className="text-3 fs-12">
                     {simulateResult.swarm ? `swarm: ${simulateResult.swarm} · ` : ""}
-                    skóre: {Number(simulateResult.score || 0)}
+                    score: {Number(simulateResult.score || 0)}
                   </div>
                   <div className="text-3 fs-12">{simulateResult.reason}</div>
                 </div>
@@ -229,7 +229,7 @@ export default function RoutingPanel({
           </div>
 
           <section className="warroom-routing-log">
-            <div className="section-title">Routing log (posledných 10)</div>
+            <div className="section-title">Routing log (last 10)</div>
             <div className="warroom-routing-list">
               {routingLog.map((item) => (
                 <div key={`${item.task_id}-${item.timestamp}`} className="warroom-routing-item">
@@ -237,12 +237,12 @@ export default function RoutingPanel({
                     {item.status === "assigned" ? "✓" : "⚠"}
                   </span>
                   <span>
-                    {item.task_type} → {item.assigned_agent || "NEPRIRADENÉ"} {item.assigned_agent_name ? `(${item.assigned_agent_name})` : ""}
+                    {item.task_type} → {item.assigned_agent || "UNASSIGNED"} {item.assigned_agent_name ? `(${item.assigned_agent_name})` : ""}
                   </span>
                   <span className="text-3">{formatAgo(item.timestamp)}</span>
                 </div>
               ))}
-              {routingLog.length === 0 ? <div className="text-3 fs-12">Zatiaľ žiadne routing rozhodnutia.</div> : null}
+              {routingLog.length === 0 ? <div className="text-3 fs-12">No routing decisions yet.</div> : null}
             </div>
           </section>
         </div>

@@ -163,6 +163,6 @@ export const onboardingSteps = [
   { key: "agent_added", label: "Add your first agent", done: true },
   { key: "alert_configured", label: "Configure alerts", done: true },
   { key: "telegram_connected", label: "Connect Telegram", done: false },
-  { key: "first_backtest", label: "Run first backtest", done: false },
+  { key: "first_backtest", label: "Run your first backtest", done: false },
 ];
 

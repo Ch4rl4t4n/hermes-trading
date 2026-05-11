@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "label": "Hermes default",
+  "globalCssVars": {
+    "--accent": "oklch(0.72 0.18 295)",
+    "--accent-glow": "oklch(0.72 0.18 295 / 0.35)",
+    "--surface-glass": "oklch(0.14 0.02 260 / 0.72)",
+    "--border-subtle": "oklch(1 0 0 / 0.08)"
+  },
+  "components": {},
+  "mobilePWAOverrides": {}
+}

@@ -82,7 +82,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
     const drift = [];
     if (Number(policy.heartbeat_ttl_seconds || 0) !== RECOMMENDED_POLICY.heartbeat_ttl_seconds) {
       drift.push(
-        `Heartbeat TTL je ${Number(policy.heartbeat_ttl_seconds || 0)}s (odporúčané ${RECOMMENDED_POLICY.heartbeat_ttl_seconds}s)`
+        `Heartbeat TTL is ${Number(policy.heartbeat_ttl_seconds || 0)}s (recommended ${RECOMMENDED_POLICY.heartbeat_ttl_seconds}s)`
       );
     }
     if (
@@ -90,7 +90,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
       RECOMMENDED_POLICY.stopped_to_paused_seconds
     ) {
       drift.push(
-        `Cleanup stopped je ${Number(policy.stopped_to_paused_seconds || 0)}s (odporúčané ${RECOMMENDED_POLICY.stopped_to_paused_seconds}s)`
+        `Cleanup stopped is ${Number(policy.stopped_to_paused_seconds || 0)}s (recommended ${RECOMMENDED_POLICY.stopped_to_paused_seconds}s)`
       );
     }
     const liveSwarms = Array.isArray(policy.auto_resume_swarms)
@@ -99,7 +99,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
     const expectedSwarms = [...RECOMMENDED_POLICY.auto_resume_swarms].sort();
     if (liveSwarms.join(",") !== expectedSwarms.join(",")) {
       drift.push(
-        `Auto-resume swarmy sú [${liveSwarms.join(", ") || "none"}] (odporúčané [${expectedSwarms.join(", ")}])`
+        `Auto-resume swarms are [${liveSwarms.join(", ") || "none"}] (recommended [${expectedSwarms.join(", ")}])`
       );
     }
     return drift;
@@ -157,7 +157,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
       setCopiedAction(key);
       window.setTimeout(() => setCopiedAction(""), 1400);
     } catch {
-      onError?.("Kopírovanie do schránky zlyhalo.");
+      onError?.("Copy to clipboard failed.");
     }
   }, [onError]);
 
@@ -165,7 +165,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
     <article className="glass swarm-v2-panel">
       <div className="row between">
         <div className="row gap-2">
-          <strong>⚡ Swarm v2 Live stav</strong>
+          <strong>⚡ Swarm v2 live status</strong>
           {status?.redis_ok ? (
             <span className="pill pill-green">Redis OK</span>
           ) : (
@@ -173,36 +173,36 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
           )}
         </div>
         <span className="text-3 fs-12">
-          {loading ? "Načítavam…" : lastUpdated ? `Aktualizované ${formatTimeAgo(lastUpdated.toISOString())}` : "—"}
+          {loading ? "Loading…" : lastUpdated ? `Updated ${formatTimeAgo(lastUpdated.toISOString())}` : "—"}
         </span>
       </div>
 
       <div className="swarm-v2-kpis">
         <div className="swarm-v2-kpi">
-          <span className="text-3 fs-12">Agenti</span>
+          <span className="text-3 fs-12">Agents</span>
           <strong>{status?.agents?.total ?? 0}</strong>
           <span className="text-3 fs-12">
-            {status?.agents?.alive ?? 0} online · {status?.agents?.running ?? 0} beží
+            {status?.agents?.alive ?? 0} online · {status?.agents?.running ?? 0} running
           </span>
         </div>
         <div className="swarm-v2-kpi">
-          <span className="text-3 fs-12">Fronta</span>
+          <span className="text-3 fs-12">Queue</span>
           <strong>{queueStats.pending ?? 0}</strong>
           <span className="text-3 fs-12">
-            {queueStats.assigned ?? 0} priradené · {queueStats.running ?? 0} beží
+            {queueStats.assigned ?? 0} assigned · {queueStats.running ?? 0} running
           </span>
         </div>
         <div className="swarm-v2-kpi">
-          <span className="text-3 fs-12">Dokončené</span>
+          <span className="text-3 fs-12">Completed</span>
           <strong>{queueStats.completed ?? 0}</strong>
           <span className="text-3 fs-12">
-            {queueStats.failed ?? 0} zlyhalo · {queueStats.dead ?? 0} dead
+            {queueStats.failed ?? 0} failed · {queueStats.dead ?? 0} dead
           </span>
         </div>
         <div className="swarm-v2-kpi">
-          <span className="text-3 fs-12">Priepustnosť</span>
+          <span className="text-3 fs-12">Throughput</span>
           <strong>{routingLog.length}</strong>
-          <span className="text-3 fs-12">posledné routy</span>
+          <span className="text-3 fs-12">recent routes</span>
         </div>
       </div>
 
@@ -210,7 +210,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
         <div className="swarm-v2-policy glass-2">
           <div className="row between">
             <strong>Runtime policy</strong>
-            <span className="text-3 fs-12">live konfigurácia</span>
+            <span className="text-3 fs-12">live configuration</span>
           </div>
           <div className="swarm-v2-policy-grid">
             <div>
@@ -222,7 +222,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
               <strong>{Number(status.policy.stopped_to_paused_seconds || 0)}s</strong>
             </div>
             <div>
-              <span className="text-3 fs-12">Auto-resume swarmy</span>
+              <span className="text-3 fs-12">Auto-resume swarms</span>
               <strong>
                 {(status.policy.auto_resume_swarms || []).length
                   ? status.policy.auto_resume_swarms.join(", ")
@@ -233,7 +233,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
           {policyDrift.length ? (
             <div className="swarm-v2-policy-warning">
               <div className="row between">
-                <strong>Zistený policy drift</strong>
+                <strong>Policy drift detected</strong>
                 <span className="pill pill-red">{policyDrift.length}</span>
               </div>
               <ul>
@@ -243,7 +243,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
               </ul>
             </div>
           ) : (
-            <div className="swarm-v2-policy-ok">Policy sedí s odporúčaným baseline.</div>
+            <div className="swarm-v2-policy-ok">Policy matches the recommended baseline.</div>
           )}
           <div className="swarm-v2-policy-actions">
             <button
@@ -251,28 +251,28 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
               className="swarm-v2-action-btn"
               onClick={() => copyText(policyExportSnippets.recommendedSnippet, "recommended")}
             >
-              {copiedAction === "recommended" ? "Skopírované" : "Kopírovať odporúčané exporty"}
+              {copiedAction === "recommended" ? "Copied" : "Copy recommended exports"}
             </button>
             <button
               type="button"
               className="swarm-v2-action-btn"
               onClick={() => copyText(policyExportSnippets.liveSnippet, "live")}
             >
-              {copiedAction === "live" ? "Skopírované" : "Kopírovať live exporty"}
+              {copiedAction === "live" ? "Copied" : "Copy live exports"}
             </button>
             <button
               type="button"
               className="swarm-v2-action-btn"
               onClick={() => copyText(policyExportSnippets.remediationSnippet, "remediation")}
             >
-              {copiedAction === "remediation" ? "Skopírované" : "Kopírovať remediation príkazy"}
+              {copiedAction === "remediation" ? "Copied" : "Copy remediation commands"}
             </button>
             <button
               type="button"
               className="swarm-v2-action-btn"
               onClick={() => copyText(policyExportSnippets.envPatchSnippet, "envpatch")}
             >
-              {copiedAction === "envpatch" ? "Skopírované" : "Kopírovať .env patch block"}
+              {copiedAction === "envpatch" ? "Copied" : "Copy .env patch block"}
             </button>
           </div>
         </div>
@@ -300,20 +300,20 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
                 <i style={{ width: `${pct(alive, total)}%`, background: swarm.meta.color }} />
               </div>
               <div className="text-3 fs-12">
-                beží: {Number(swarm.running || 0)}
+                running: {Number(swarm.running || 0)}
               </div>
             </div>
           );
         })}
         {swarms.length === 0 ? (
-          <div className="text-3 fs-12">Zatiaľ nie sú registrované swarmy. Spusť /api/v2/swarm/seed.</div>
+          <div className="text-3 fs-12">No swarms registered yet. Run /api/v2/swarm/seed.</div>
         ) : null}
       </div>
 
       <div className="swarm-v2-routing">
         <div className="row between">
-          <strong>Routing rozhodnutia (DB persist)</strong>
-          <span className="text-3 fs-12">{routingLog.length} záznamov</span>
+          <strong>Routing decisions (DB persist)</strong>
+          <span className="text-3 fs-12">{routingLog.length} records</span>
         </div>
         <div className="swarm-v2-routing-list">
           {routingLog.map((item, idx) => (
@@ -322,7 +322,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
                 {item.assigned_agent ? "✓" : "⚠"}
               </span>
               <span>
-                <strong>{item.task_type}</strong> → {item.assigned_agent || "NEPRIRADENÉ"}
+                <strong>{item.task_type}</strong> → {item.assigned_agent || "UNASSIGNED"}
                 {item.assigned_swarm ? ` [${item.assigned_swarm}]` : ""}
               </span>
               <span className="pill pill-gray">score {Number(item.score || 0)}</span>
@@ -331,7 +331,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
           ))}
           {routingLog.length === 0 ? (
             <div className="text-3 fs-12">
-              Zatiaľ žiadne routing rozhodnutia. Pridaj test task alebo počkaj na orchestra tick.
+              No routing decisions yet. Add a test task or wait for an orchestra tick.
             </div>
           ) : null}
         </div>
@@ -339,7 +339,7 @@ export default function SwarmStatusPanel({ refreshIntervalMs = 5000, onError }) 
 
       {totalQueueItems > 0 ? (
         <div className="swarm-v2-recent">
-          <strong>Posledné tasky ({queue?.recent?.length || 0})</strong>
+          <strong>Recent tasks ({queue?.recent?.length || 0})</strong>
           <div className="swarm-v2-task-list">
             {(queue?.recent || []).slice(0, 6).map((task) => (
               <div key={task.task_id} className="swarm-v2-task-row">

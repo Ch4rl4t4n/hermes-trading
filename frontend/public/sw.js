@@ -1,4 +1,4 @@
-const CACHE_NAME = "hermes-v4";
+const CACHE_NAME = "hermes-v35";
 const API_CACHE_TTL_MS = 5 * 60 * 1000;
 const CORE_ASSETS = ["/", "/index.html"];
 const API_ENDPOINTS = ["/api/agents/pnl", "/api/marketplace/agents"];
@@ -30,6 +30,15 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).then(() => self.skipWaiting()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  const data = event?.data;
+  if (data && (data.type === "HERMES_DESIGN_BUMP" || data === "HERMES_DESIGN_BUMP")) {
+    event.waitUntil(
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).then(() => self.skipWaiting()),
+    );
+  }
 });
 
 self.addEventListener("activate", (event) => {

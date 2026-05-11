@@ -1,13 +1,14 @@
 import BottomNav from "./BottomNav";
-import Sidebar from "./Sidebar";
-import TopBar from "./TopBar";
+import HermesTopNav from "./HermesTopNav";
 import TopNav from "./TopNav";
 import { useBreakpoint } from "../../hooks/useBreakpoint";
 import { useTheme } from "../../hooks/useTheme";
 
-export default function Layout({ page, setPage, user, onLogout, children }) {
+export default function Layout({ page, setPage, user, onLogout, totalPnl = 0, children }) {
   const { isDesktop } = useBreakpoint();
-  const { theme, isLight, toggleTheme } = useTheme();
+  // Hermes is dark-only — no theme toggle in the UI. The hook is still
+  // called so old `data-theme="light"` attributes get cleaned up on load.
+  useTheme();
 
   const skipToMain = (e) => {
     e.preventDefault();
@@ -16,31 +17,34 @@ export default function Layout({ page, setPage, user, onLogout, children }) {
   };
 
   return (
-    <div className="app-layout">
+    <div className="app-layout app-layout--topnav">
       <a href="#main-content" className="skip-to-content" onClick={skipToMain}>
-        Preskočiť na hlavný obsah
+        Skip to main content
       </a>
-      {isDesktop && <Sidebar page={page} onNav={setPage} user={user} onLogout={onLogout} />}
+      {isDesktop ? (
+        <HermesTopNav
+          page={page}
+          user={user}
+          onNav={setPage}
+          onLogout={onLogout}
+          totalPnl={totalPnl}
+        />
+      ) : (
+        <TopNav user={user} onNav={setPage} totalPnl={totalPnl} />
+      )}
       <main
         id="main-content"
         tabIndex={-1}
-        className="main-content"
-        aria-label="Hlavný obsah"
+        className="main-content main-content--topnav"
+        aria-label="Main content"
         style={{
-          marginLeft: isDesktop ? 240 : 0,
           paddingBottom: isDesktop ? 0 : "calc(64px + env(safe-area-inset-bottom))",
           paddingTop: isDesktop ? undefined : "env(safe-area-inset-top, 0px)",
         }}
       >
-        {isDesktop ? (
-          <TopBar page={page} user={user} onNav={setPage} theme={theme} isLight={isLight} onToggleTheme={toggleTheme} />
-        ) : (
-          <TopNav user={user} onMore={() => setPage("backtest")} theme={theme} isLight={isLight} onToggleTheme={toggleTheme} />
-        )}
         {children}
       </main>
       {!isDesktop && <BottomNav page={page} onNav={setPage} />}
     </div>
   );
 }
-

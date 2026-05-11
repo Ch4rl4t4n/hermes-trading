@@ -1,45 +1,25 @@
-import SwarmHealthBadge from "../SwarmHealthBadge";
+import NotificationBell from "../NotificationBell";
 
 const titles = {
-  dashboard: "Prehľad",
+  dashboard: "Dashboard",
   marketplace: "Market",
   builder: "Agent Builder",
-  leaderboard: "Rebríček",
+  leaderboard: "Leaderboard",
   backtest: "Backtest",
-  settings: "Nastavenia",
+  settings: "Settings",
   developer: "Developer API",
-  admin: "Administrácia",
-  "admin-swarm": "Centrum swarmov",
+  admin: "Administration",
+  "admin-swarm": "Swarm Center",
 };
 
-export default function TopBar({ page, user, onNav, isLight, onToggleTheme }) {
-  const isAdmin = Boolean(user?.isAdmin) || String(user?.tier || "").toLowerCase() === "admin";
+export default function TopBar({ page, user, onNav }) {
   return (
-    <header className="topbar" aria-label="Horná lišta">
+    <header className="topbar" aria-label="Top bar">
       <strong>{titles[page] || "Hermes"}</strong>
       <div className="row gap-2">
-        <input className="topbar-search" placeholder="Hľadať agentov, symboly..." aria-label="Vyhľadávanie agentov a symbolov" />
-        <button
-          type="button"
-          className="theme-toggle-btn"
-          onClick={onToggleTheme}
-          aria-label={isLight ? "Prepnúť na tmavý režim" : "Prepnúť na svetlý režim"}
-          title={isLight ? "Tmavý režim" : "Svetlý režim"}
-        >
-          {isLight ? "🌙" : "☀️"}
-        </button>
-        <SwarmHealthBadge
-          isAdmin={isAdmin}
-          onClick={() => onNav?.("admin-swarm")}
-        />
-        <button type="button" className="topbar-bell" aria-label="Notifikácie">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-            <path d="M10.4 20a2.1 2.1 0 0 0 3.2 0" />
-          </svg>
-          <span>{user?.notifications || 0}</span>
-        </button>
-        <div className="topbar-avatar" role="img" aria-label={`Profil používateľa ${user?.name || "Agent"}`}>
+        <input className="topbar-search" placeholder="Search agents, symbols..." aria-label="Search agents and symbols" />
+        <NotificationBell user={user} onNav={onNav} />
+        <div className="topbar-avatar" role="img" aria-label={`User profile ${user?.name || "Agent"}`}>
           {(user?.name || "A")[0]}
         </div>
       </div>

@@ -126,13 +126,16 @@ export default function Developer({ user }) {
   }
 
   return (
-    <section className="page-content">
+    <section className="page-content hermes-developer">
+      <header className="hermes-page-head">
+        <div>
+          <h1 className="hermes-page-title">Developer API</h1>
+          <p className="hermes-page-lead">Programmatic access to the Hermes platform · requires Elite tier</p>
+        </div>
+        <span className="pill pill-violet">Elite</span>
+      </header>
       <article className="glass developer-page" style={{ padding: 16, maxWidth: 980 }}>
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div>
-            <h3 style={{ margin: 0 }}>Developer API</h3>
-            <span className="pill pill-violet" style={{ marginTop: 8, display: "inline-flex" }}>Elite</span>
-          </div>
           <button
             type="button"
             className="pill pill-violet"

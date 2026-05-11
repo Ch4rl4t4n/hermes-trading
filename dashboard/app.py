@@ -156,6 +156,7 @@ from core.badges import (
     grouped_performance_from_table,
     merge_badge_ids,
 )
+from core.owner_access import user_is_owner
 from core.tier_access import (
     TIER_ADMIN,
     TIER_BASIC,
@@ -270,12 +271,19 @@ _INTERNAL_API_ALLOWED_PATHS = frozenset(
         "/api/alerts/rules",
         "/api/agents/badges",
         "/api/support/ticket",
+        "/api/community/posts",
+        "/api/community/sentiment",
+        "/api/heatmap",
+        "/api/news/intelligence",
     }
 )
 
 _INTERNAL_API_PARAMETERIZED_PATTERNS = (
     re.compile(r"^/api/alerts/rules/\d+$"),
     re.compile(r"^/api/alerts/rules/\d+/toggle$"),
+    re.compile(r"^/api/community/posts/\d+/like$"),
+    re.compile(r"^/api/community/posts/\d+$"),
+    re.compile(r"^/api/news/intelligence/\d+$"),
 )
 
 
@@ -555,7 +563,7 @@ def _security_headers(resp: Response):
     if getattr(request, "is_secure", False):
         resp.headers.setdefault(
             "Strict-Transport-Security",
-            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+            (os.getenv("HERMES_HSTS") or "max-age=31536000; includeSubDomains").strip(),
         )
     path = request.path or ""
     if path.startswith("/v1/") or path.startswith("/api/v1/"):
@@ -1822,7 +1830,23 @@ def dashboard_v2():
 
 @app.route("/login/google")
 def login_google_start():
-    """Friendly URL for Google OAuth (Flask-Dance entry is ``/oauth/google``)."""
+    """Friendly URL for Google OAuth (Flask-Dance entry is ``/oauth/google``).
+
+    Pozor: ak nginx/static host vracia SPA ``index.html`` pre všetky cesty okrem ``/api/*``,
+    tento endpoint sa nikdy nedostane do Flasku — použite ``/api/auth/google/start``.
+    """
+    return redirect("/oauth/google")
+
+
+@app.route("/api/auth/google/start", methods=["GET"])
+def auth_google_oauth_start():
+    """Vstup do Google OAuth cez ``/api/*`` — spoľahlivé za nginx SPA fallbackom.
+
+    Celostránkový redirect na Flask-Dance (``/oauth/google``). Vyžaduje, aby ``/oauth/``
+    tiež smerovalo na Flask (pozri ``docs/nginx-hermes-pwa-snippet.conf``).
+    """
+    if _GOOGLE_PLACEHOLDER or db.SessionLocal is None:
+        return redirect("/?google=unavailable")
     return redirect("/oauth/google")
 
 
@@ -2201,6 +2225,19 @@ def api_platform_tier_features():
     return jsonify(dash_config.TIER_FEATURES)
 
 
+@app.route("/api/exchange-rates", methods=["GET"])
+def api_exchange_rates():
+    """Approximate FX vs USD for SPA CurrencyContext (falls back match frontend FALLBACK_RATES_VS_USD)."""
+    return jsonify({
+        "rates": {
+            "EUR": 0.93,
+            "GBP": 0.79,
+            "CZK": 23.4,
+        },
+        "source": "static",
+    })
+
+
 @app.route("/oauth/google/done")
 def google_auth_finish():
     if _GOOGLE_PLACEHOLDER or db.SessionLocal is None:
@@ -2565,6 +2602,7 @@ def auth_status():
             "totp_enabled": bool(u.totp_enabled),
             "role": "admin" if u.is_admin else "user",
             "is_admin": bool(u.is_admin),
+            "is_owner": bool(user_is_owner(u)),
             "tier": u.tier,
             "backup_codes_remaining": 0,
             "features": features_payload(u),
@@ -2748,6 +2786,7 @@ def auth_me():
             "username": u.username,
             "tier": u.tier,
             "is_admin": u.is_admin,
+            "is_owner": bool(user_is_owner(u)),
             "totp_enabled": u.totp_enabled,
             "account_auth_kind": (getattr(u, "auth_kind", None) or "db"),
             "account": acct_payload,
@@ -9284,7 +9323,625 @@ def api_notifications_read():
     return jsonify({"success": True})
 
 
+@app.route("/api/notifications/unread-count", methods=["GET"])
+@login_required
+def api_notifications_unread_count():
+    """Cheap polling endpoint — single int back. Counts user-specific + broadcast (user_id IS NULL)."""
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _marketplace_db_user()
+    if u is None:
+        return jsonify({"unread": 0})
+    sess = db.db_session()
+    try:
+        row = sess.execute(
+            text(
+                """
+                SELECT COUNT(*)::int AS c
+                FROM notifications
+                WHERE is_read = FALSE
+                  AND (user_id = :uid OR user_id IS NULL)
+                """
+            ),
+            {"uid": u.id},
+        ).mappings().first()
+        return jsonify({"unread": int(row["c"]) if row else 0})
+    finally:
+        sess.close()
+
+
+@app.route("/api/notifications/<int:notif_id>/read", methods=["POST"])
+@login_required
+def api_notifications_read_one(notif_id: int):
+    """Mark a single notification as read (only the owner can flip it)."""
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _marketplace_db_user()
+    if u is None:
+        return jsonify({"error": "Notifications require a registered account."}), 403
+    sess = db.db_session()
+    try:
+        sess.execute(
+            text(
+                """
+                UPDATE notifications SET is_read = TRUE
+                WHERE id = :id AND (user_id = :uid OR user_id IS NULL)
+                """
+            ),
+            {"id": notif_id, "uid": u.id},
+        )
+        sess.commit()
+        return jsonify({"success": True})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("notifications mark single")
+        return jsonify({"error": "Označenie zlyhalo."}), 500
+    finally:
+        sess.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Community Feed (CMC-style) — posts + likes + sentiment
+# ─────────────────────────────────────────────────────────────────────────────
+
+_COMMUNITY_MAX_LEN = 600
+_COMMUNITY_MIN_LEN = 2
+_COMMUNITY_VALID_SENTIMENT = {"bullish", "bearish"}
+
+
+def _community_serialize_row(row: dict, viewer_id: int | None) -> dict:
+    return {
+        "id": int(row["id"]),
+        "user_id": int(row["user_id"]),
+        "username": row.get("username") or "agent",
+        "symbol": row.get("symbol"),
+        "content": row.get("content") or "",
+        "sentiment": row.get("sentiment"),
+        "likes_count": int(row.get("likes_count") or 0),
+        "comments_count": int(row.get("comments_count") or 0),
+        "views_count": int(row.get("views_count") or 0),
+        "is_liked": bool(row.get("is_liked")) if viewer_id else False,
+        "is_own": bool(viewer_id and int(row["user_id"]) == int(viewer_id)),
+        "created_at": (row["created_at"].isoformat() if row.get("created_at") else None),
+    }
+
+
+@app.route("/api/community/posts", methods=["GET"])
+def api_community_posts_list():
+    """
+    Public read-only feed.
+    Query params:
+      tab=top|latest (default latest)
+      symbol=BTC (optional filter)
+      limit=<int 1..50> (default 20)
+    """
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    tab = (request.args.get("tab") or "latest").lower()
+    if tab not in ("top", "latest"):
+        tab = "latest"
+    symbol = (request.args.get("symbol") or "").strip().upper() or None
+    try:
+        limit = max(1, min(50, int(request.args.get("limit") or 20)))
+    except (TypeError, ValueError):
+        limit = 20
+
+    viewer_id: int | None = None
+    try:
+        viewer_id = int(session.get("user_id")) if session.get("user_id") else None
+    except (TypeError, ValueError):
+        viewer_id = None
+
+    order_clause = (
+        "p.likes_count DESC, p.created_at DESC"
+        if tab == "top"
+        else "p.created_at DESC"
+    )
+
+    sess = db.db_session()
+    try:
+        sql = f"""
+            SELECT
+                p.id, p.user_id, p.symbol, p.content, p.sentiment,
+                p.likes_count, p.comments_count, p.views_count, p.created_at,
+                u.username,
+                CASE WHEN :viewer_id IS NULL THEN FALSE
+                     ELSE EXISTS (
+                        SELECT 1 FROM community_post_likes l
+                         WHERE l.post_id = p.id AND l.user_id = :viewer_id
+                     ) END AS is_liked
+            FROM community_posts p
+            JOIN users u ON u.id = p.user_id
+            WHERE (:symbol IS NULL OR UPPER(p.symbol) = :symbol)
+            ORDER BY {order_clause}
+            LIMIT :lim
+        """
+        rows = sess.execute(
+            text(sql),
+            {"viewer_id": viewer_id, "symbol": symbol, "lim": limit},
+        ).mappings().all()
+        posts = [_community_serialize_row(dict(r), viewer_id) for r in rows]
+        return jsonify({"posts": posts, "tab": tab})
+    except Exception:  # noqa: BLE001
+        log.exception("community posts list")
+        return jsonify({"error": "Failed to load community feed."}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/community/posts", methods=["POST"])
+@login_required
+def api_community_posts_create():
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _marketplace_db_user()
+    if u is None:
+        return jsonify({"error": "Posting requires a registered account."}), 403
+
+    body = request.get_json(silent=True) or {}
+    content = (body.get("content") or "").strip()
+    sentiment = (body.get("sentiment") or "").strip().lower() or None
+    symbol_raw = (body.get("symbol") or "").strip().upper() or None
+
+    if len(content) < _COMMUNITY_MIN_LEN:
+        return jsonify({"error": "Post is too short."}), 400
+    if len(content) > _COMMUNITY_MAX_LEN:
+        return jsonify({"error": f"Post exceeds {_COMMUNITY_MAX_LEN} characters."}), 400
+    if sentiment is not None and sentiment not in _COMMUNITY_VALID_SENTIMENT:
+        return jsonify({"error": "Invalid sentiment."}), 400
+    symbol = symbol_raw[:24] if symbol_raw else None
+
+    sess = db.db_session()
+    try:
+        row = sess.execute(
+            text(
+                """
+                INSERT INTO community_posts (user_id, symbol, content, sentiment)
+                VALUES (:uid, :sym, :content, :sent)
+                RETURNING id, user_id, symbol, content, sentiment,
+                          likes_count, comments_count, views_count, created_at
+                """
+            ),
+            {"uid": u.id, "sym": symbol, "content": content, "sent": sentiment},
+        ).mappings().first()
+        sess.commit()
+        if not row:
+            return jsonify({"error": "Could not save post."}), 500
+        post = dict(row)
+        post["username"] = u.username
+        post["is_liked"] = False
+        return jsonify({"post": _community_serialize_row(post, u.id)}), 201
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("community post create")
+        return jsonify({"error": "Could not save post."}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/community/posts/<int:post_id>", methods=["DELETE"])
+@login_required
+def api_community_posts_delete(post_id: int):
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _marketplace_db_user()
+    if u is None:
+        return jsonify({"error": "Auth required."}), 403
+    sess = db.db_session()
+    try:
+        is_admin = bool(getattr(u, "is_admin", False))
+        if is_admin:
+            res = sess.execute(
+                text("DELETE FROM community_posts WHERE id = :id"),
+                {"id": post_id},
+            )
+        else:
+            res = sess.execute(
+                text("DELETE FROM community_posts WHERE id = :id AND user_id = :uid"),
+                {"id": post_id, "uid": u.id},
+            )
+        sess.commit()
+        if not res.rowcount:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"ok": True})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("community post delete")
+        return jsonify({"error": "Could not delete post."}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/community/posts/<int:post_id>/like", methods=["POST"])
+@login_required
+def api_community_posts_like(post_id: int):
+    """Toggle like for the current user. Returns new likes_count + is_liked."""
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    u = _marketplace_db_user()
+    if u is None:
+        return jsonify({"error": "Auth required."}), 403
+    sess = db.db_session()
+    try:
+        exists_row = sess.execute(
+            text("SELECT 1 FROM community_post_likes WHERE post_id = :pid AND user_id = :uid"),
+            {"pid": post_id, "uid": u.id},
+        ).first()
+        if exists_row:
+            sess.execute(
+                text("DELETE FROM community_post_likes WHERE post_id = :pid AND user_id = :uid"),
+                {"pid": post_id, "uid": u.id},
+            )
+            sess.execute(
+                text(
+                    "UPDATE community_posts SET likes_count = GREATEST(likes_count - 1, 0) WHERE id = :pid"
+                ),
+                {"pid": post_id},
+            )
+            is_liked = False
+        else:
+            sess.execute(
+                text(
+                    "INSERT INTO community_post_likes (post_id, user_id) VALUES (:pid, :uid) "
+                    "ON CONFLICT DO NOTHING"
+                ),
+                {"pid": post_id, "uid": u.id},
+            )
+            sess.execute(
+                text("UPDATE community_posts SET likes_count = likes_count + 1 WHERE id = :pid"),
+                {"pid": post_id},
+            )
+            is_liked = True
+        row = sess.execute(
+            text("SELECT likes_count FROM community_posts WHERE id = :pid"),
+            {"pid": post_id},
+        ).mappings().first()
+        if not row:
+            sess.rollback()
+            return jsonify({"error": "not found"}), 404
+        sess.commit()
+        return jsonify({"likes_count": int(row["likes_count"]), "is_liked": is_liked})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("community post like")
+        return jsonify({"error": "Could not toggle like."}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/community/sentiment", methods=["GET"])
+def api_community_sentiment():
+    """24h aggregated bullish/bearish counts. Used for the sentiment bar."""
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    symbol = (request.args.get("symbol") or "").strip().upper() or None
+    sess = db.db_session()
+    try:
+        rows = sess.execute(
+            text(
+                """
+                SELECT sentiment, COUNT(*)::int AS c
+                FROM community_posts
+                WHERE created_at >= NOW() - INTERVAL '24 hours'
+                  AND sentiment IN ('bullish','bearish')
+                  AND (:symbol IS NULL OR UPPER(symbol) = :symbol)
+                GROUP BY sentiment
+                """
+            ),
+            {"symbol": symbol},
+        ).mappings().all()
+        counts = {r["sentiment"]: int(r["c"]) for r in rows}
+        bullish = counts.get("bullish", 0)
+        bearish = counts.get("bearish", 0)
+        total = bullish + bearish
+        bullish_pct = round((bullish / total) * 100) if total else 50
+        bearish_pct = 100 - bullish_pct if total else 50
+        return jsonify(
+            {
+                "bullish": bullish,
+                "bearish": bearish,
+                "total_votes": total,
+                "bullish_pct": bullish_pct,
+                "bearish_pct": bearish_pct,
+            }
+        )
+    except Exception:  # noqa: BLE001
+        log.exception("community sentiment")
+        return jsonify({"error": "Could not load sentiment."}), 500
+    finally:
+        sess.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Heatmap (24h) — CoinGecko top 20 with metric routing
+# ─────────────────────────────────────────────────────────────────────────────
+
+_HEATMAP_CACHE: dict[str, dict] = {}
+_HEATMAP_TTL_S = 60
+_HEATMAP_VALID_METRICS = ("volume", "change", "market_cap")
+_HEATMAP_PLACEHOLDER_METRICS = ("liquidation", "open_interest")
+
+
+def _heatmap_fetch_coingecko(order_param: str, limit: int = 20) -> list[dict]:
+    """Synchronous fetch from CoinGecko /coins/markets (cheap, used behind 60s cache)."""
+    import requests  # local import: keeps cold-import path lean
+
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    params = {
+        "vs_currency": "usd",
+        "order": order_param,
+        "per_page": limit,
+        "page": 1,
+        "price_change_percentage": "24h",
+        "sparkline": "false",
+    }
+    try:
+        r = requests.get(url, params=params, timeout=8)
+        if r.status_code != 200:
+            log.warning("heatmap coingecko %s -> %s", order_param, r.status_code)
+            return []
+        rows = r.json() or []
+    except Exception as exc:  # noqa: BLE001
+        log.warning("heatmap coingecko %s failed: %s", order_param, exc)
+        return []
+
+    out: list[dict] = []
+    for it in rows:
+        try:
+            out.append(
+                {
+                    "symbol": (it.get("symbol") or "").upper(),
+                    "name": it.get("name") or "",
+                    "image": it.get("image"),
+                    "price": float(it.get("current_price") or 0),
+                    "volume_24h": float(it.get("total_volume") or 0),
+                    "market_cap": float(it.get("market_cap") or 0),
+                    "change_24h": float(it.get("price_change_percentage_24h") or 0),
+                }
+            )
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+@app.route("/api/heatmap", methods=["GET"])
+def api_heatmap():
+    """
+    Top 20 crypto assets for the dashboard heatmap.
+
+    Query params:
+        metric=volume | change | market_cap (default volume)
+                liquidation | open_interest -> 200 with empty list + meta.coming_soon=true
+        limit=int 5..30 (default 20)
+    Cache: 60s in-memory per (metric, limit) key.
+    """
+    metric = (request.args.get("metric") or "volume").lower()
+    try:
+        limit = max(5, min(30, int(request.args.get("limit") or 20)))
+    except (TypeError, ValueError):
+        limit = 20
+
+    if metric in _HEATMAP_PLACEHOLDER_METRICS:
+        return jsonify({"items": [], "metric": metric, "coming_soon": True})
+
+    if metric not in _HEATMAP_VALID_METRICS:
+        metric = "volume"
+
+    cache_key = f"{metric}:{limit}"
+    now = time.time()
+    cached = _HEATMAP_CACHE.get(cache_key)
+    if cached and (now - cached["t"]) < _HEATMAP_TTL_S:
+        return jsonify({"items": cached["data"], "metric": metric, "cached": True})
+
+    order_param = {
+        "volume": "volume_desc",
+        "market_cap": "market_cap_desc",
+        # CoinGecko has no public "biggest movers" sort — pull top-cap window then re-sort.
+        "change": "market_cap_desc",
+    }[metric]
+
+    items = _heatmap_fetch_coingecko(order_param, limit=limit if metric != "change" else max(limit, 50))
+
+    if metric == "change" and items:
+        items.sort(key=lambda x: abs(x.get("change_24h") or 0), reverse=True)
+        items = items[:limit]
+
+    if items:
+        _HEATMAP_CACHE[cache_key] = {"t": now, "data": items}
+    elif cached:
+        # Stale-while-error: serve last known good payload
+        return jsonify({"items": cached["data"], "metric": metric, "cached": True, "stale": True})
+
+    return jsonify({"items": items, "metric": metric, "cached": False})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Intelligence News Bubbles — agent-fed scrolling ticker on dashboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+_INTELLIGENCE_VALID_KINDS = {"news", "question", "alert", "insight"}
+_INTELLIGENCE_VALID_ACCENTS = {"orange", "blue", "green", "red", "purple", "neutral"}
+_INTELLIGENCE_TITLE_MAX = 200
+
+
+def _intelligence_serialize(row: dict) -> dict:
+    return {
+        "id": int(row["id"]),
+        "kind": row.get("kind") or "news",
+        "title": row.get("title") or "",
+        "icon": row.get("icon"),
+        "accent": row.get("accent") or "neutral",
+        "url": row.get("url"),
+        "source": row.get("source"),
+        "agent_id": row.get("agent_id"),
+        "priority": int(row.get("priority") or 0),
+        "created_at": (row["created_at"].isoformat() if row.get("created_at") else None),
+        "expires_at": (row["expires_at"].isoformat() if row.get("expires_at") else None),
+    }
+
+
+@app.route("/api/news/intelligence", methods=["GET"])
+def api_intelligence_list():
+    """
+    Public ticker feed. Returns active (non-expired) bubbles ordered by
+    priority DESC, created_at DESC. Limit is capped at 25.
+    """
+    if db.SessionLocal is None:
+        return jsonify({"items": []})
+    try:
+        limit = max(1, min(25, int(request.args.get("limit") or 12)))
+    except (TypeError, ValueError):
+        limit = 12
+    sess = db.db_session()
+    try:
+        rows = sess.execute(
+            text(
+                """
+                SELECT id, kind, title, icon, accent, url, source,
+                       agent_id, priority, created_at, expires_at
+                  FROM intelligence_news
+                 WHERE expires_at IS NULL OR expires_at > NOW()
+                 ORDER BY priority DESC, created_at DESC
+                 LIMIT :lim
+                """
+            ),
+            {"lim": limit},
+        ).mappings().all()
+        items = [_intelligence_serialize(dict(r)) for r in rows]
+        return jsonify({"items": items})
+    except Exception:  # noqa: BLE001
+        log.exception("intelligence list")
+        return jsonify({"items": []}), 200
+    finally:
+        sess.close()
+
+
+@app.route("/api/news/intelligence", methods=["POST"])
+@admin_required
+def api_intelligence_create():
+    """
+    Admin/agent push endpoint. Body:
+      {
+        "title": str (required),
+        "kind": "news"|"question"|"alert"|"insight",
+        "icon": str (optional),
+        "accent": "orange"|"blue"|"green"|"red"|"purple"|"neutral",
+        "url": str (optional),
+        "source": str (optional),
+        "agent_id": str (optional),
+        "priority": int (optional, default 0),
+        "ttl_minutes": int (optional, sets expires_at = NOW() + N minutes)
+      }
+    """
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+
+    body = request.get_json(silent=True) or {}
+    title = (body.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "title is required"}), 400
+    if len(title) > _INTELLIGENCE_TITLE_MAX:
+        return jsonify({"error": f"title exceeds {_INTELLIGENCE_TITLE_MAX} chars"}), 400
+
+    kind = (body.get("kind") or "news").lower()
+    if kind not in _INTELLIGENCE_VALID_KINDS:
+        return jsonify({"error": "invalid kind"}), 400
+
+    accent = (body.get("accent") or "neutral").lower()
+    if accent not in _INTELLIGENCE_VALID_ACCENTS:
+        return jsonify({"error": "invalid accent"}), 400
+
+    icon = (body.get("icon") or "")[:16] or None
+    url = (body.get("url") or "").strip() or None
+    source = (body.get("source") or "")[:64] or None
+    agent_id = (body.get("agent_id") or "")[:64] or None
+    try:
+        priority = max(0, min(99, int(body.get("priority") or 0)))
+    except (TypeError, ValueError):
+        priority = 0
+
+    expires_clause = "NULL"
+    params = {
+        "kind": kind,
+        "title": title,
+        "icon": icon,
+        "accent": accent,
+        "url": url,
+        "source": source,
+        "agent_id": agent_id,
+        "priority": priority,
+    }
+    ttl = body.get("ttl_minutes")
+    if ttl is not None:
+        try:
+            mins = max(1, min(60 * 24 * 14, int(ttl)))
+            expires_clause = "NOW() + (:ttl || ' minutes')::interval"
+            params["ttl"] = str(mins)
+        except (TypeError, ValueError):
+            pass
+
+    sess = db.db_session()
+    try:
+        row = sess.execute(
+            text(
+                f"""
+                INSERT INTO intelligence_news
+                  (kind, title, icon, accent, url, source, agent_id, priority, expires_at)
+                VALUES
+                  (:kind, :title, :icon, :accent, :url, :source, :agent_id, :priority, {expires_clause})
+                RETURNING id, kind, title, icon, accent, url, source,
+                          agent_id, priority, created_at, expires_at
+                """
+            ),
+            params,
+        ).mappings().first()
+        sess.commit()
+        if not row:
+            return jsonify({"error": "insert failed"}), 500
+        return jsonify({"item": _intelligence_serialize(dict(row))}), 201
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("intelligence create")
+        return jsonify({"error": "could not save"}), 500
+    finally:
+        sess.close()
+
+
+@app.route("/api/news/intelligence/<int:item_id>", methods=["DELETE"])
+@admin_required
+def api_intelligence_delete(item_id: int):
+    if db.SessionLocal is None:
+        return jsonify({"error": "database unavailable"}), 503
+    sess = db.db_session()
+    try:
+        res = sess.execute(
+            text("DELETE FROM intelligence_news WHERE id = :id"),
+            {"id": item_id},
+        )
+        sess.commit()
+        if not res.rowcount:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"ok": True})
+    except Exception:  # noqa: BLE001
+        sess.rollback()
+        log.exception("intelligence delete")
+        return jsonify({"error": "could not delete"}), 500
+    finally:
+        sess.close()
+
+
 # ── Admin CMS (see dashboard/admin_api.py) ─────────────────────────────────
+
+from dashboard.owner_design_api import register_owner_design_routes  # noqa: E402
+
+register_owner_design_routes(
+    app,
+    db=db,
+    login_required=login_required,
+    _resolve_identity=_resolve_identity,
+)
 
 from dashboard.admin_api import register_admin_routes  # noqa: E402
 

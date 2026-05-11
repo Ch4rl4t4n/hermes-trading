@@ -23,7 +23,7 @@ export default function SwarmGridPanel({
       swarm_name: sn,
       display_name: meta.display_name || meta.swarm_display_name || sn,
       icon: meta.icon || "🤖",
-      description: meta.description || "Custom swarm vytvorený cez Prompt Builder",
+      description: meta.description || "Custom swarm created via Prompt Builder",
       color: meta.color || "oklch(0.72 0.18 295)",
     });
   }
@@ -40,33 +40,33 @@ export default function SwarmGridPanel({
           <article key={swarm.swarm_name} className="glass-2 warroom-swarm-card" style={{ borderLeft: `3px solid ${swarm.color}` }}>
             <div className="row between">
               <strong>{swarm.icon} {swarm.display_name}</strong>
-              <span className={`pill ${alive > 0 ? "pill-green" : "pill-red"}`}>{alive > 0 ? "aktívny" : "nedostupný"}</span>
+              <span className={`pill ${alive > 0 ? "pill-green" : "pill-red"}`}>{alive > 0 ? "active" : "unavailable"}</span>
             </div>
             <div className="text-3 fs-12" style={{ marginTop: 6 }}>{swarm.description}</div>
-            <div className="warroom-swarm-meta">Agenti: {alive}/{agents.length} online</div>
-            <div className="warroom-swarm-meta">Tasky dnes: {completed} | Chyby: {failed}</div>
+            <div className="warroom-swarm-meta">Agents: {alive}/{agents.length} online</div>
+            <div className="warroom-swarm-meta">Tasks today: {completed} | Failures: {failed}</div>
             <div className="row gap-2" style={{ marginTop: 10, flexWrap: "wrap" }}>
               <button type="button" className="pill pill-gray" onClick={() => setExpandedSwarms((prev) => ({ ...prev, [swarm.swarm_name]: !prev[swarm.swarm_name] }))}>
-                {expanded ? "Zobraziť agentov ▲" : "Zobraziť agentov ▼"}
+                {expanded ? "Show agents ▲" : "Show agents ▼"}
               </button>
-              <button type="button" className="pill pill-violet" onClick={() => onToast?.("Flow pridania agenta bude v ďalšom kroku")}>+ Pridať agenta</button>
-              <button type="button" className="pill pill-gray" onClick={() => bulkStatusUpdate("paused", agents)}>⏸ Pauza</button>
+              <button type="button" className="pill pill-violet" onClick={() => onToast?.("Add-agent flow coming in a later step")}>+ Add agent</button>
+              <button type="button" className="pill pill-gray" onClick={() => bulkStatusUpdate("paused", agents)}>⏸ Pause</button>
               {!["orchestra", "trading", "intelligence", "marketing", "maintenance"].includes(swarm.swarm_name) ? (
                 <button
                   type="button"
                   className="pill pill-red"
                   onClick={async () => {
-                    if (!window.confirm(`Zmazať swarm "${swarm.swarm_name}" a všetkých jeho agentov?`)) return;
+                    if (!window.confirm(`Delete swarm "${swarm.swarm_name}" and all its agents?`)) return;
                     try {
                       await client.delete(`/api/admin/swarm-builder/swarms/${encodeURIComponent(swarm.swarm_name)}`);
-                      onToast?.(`Swarm ${swarm.swarm_name} bol zmazaný`);
+                      onToast?.(`Swarm ${swarm.swarm_name} was deleted`);
                       fetchRegistry().catch(() => {});
                     } catch (error) {
-                      onToast?.(apiMessage(error, "Mazanie zlyhalo"));
+                      onToast?.(apiMessage(error, "Delete failed"));
                     }
                   }}
                 >
-                  🗑 Zmazať swarm
+                  🗑 Delete swarm
                 </button>
               ) : null}
             </div>
@@ -76,7 +76,7 @@ export default function SwarmGridPanel({
                   <div key={agent.agent_id} className="warroom-inline-agent">
                     <span className={`swarm-dot ${agent.alive ? "swarm-dot-alive" : "swarm-dot-dead"}`} />
                     <button type="button" className="warroom-linklike" onClick={() => setSelectedAgent(agent)}>{agent.agent_id}</button>
-                    <span className="text-3">{agent.name || "Nepomenovaný"}</span>
+                    <span className="text-3">{agent.name || "Unnamed"}</span>
                     <span className="pill pill-gray">{String(agent.status || "idle")}</span>
                     <div className="row gap-1">
                       <button type="button" className="pill pill-green" onClick={() => updateStatus(agent.agent_id, "running")}>▶</button>
@@ -86,7 +86,7 @@ export default function SwarmGridPanel({
                     </div>
                   </div>
                 ))}
-                {agents.length === 0 ? <div className="text-3 fs-12">V tomto swarme nie sú žiadni agenti.</div> : null}
+                {agents.length === 0 ? <div className="text-3 fs-12">No agents in this swarm.</div> : null}
               </div>
             ) : null}
           </article>

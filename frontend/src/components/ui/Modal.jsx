@@ -62,7 +62,7 @@ export default function Modal({ open, title, children, onClose, className = "" }
         aria-labelledby={title ? titleId : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        <button ref={closeBtnRef} type="button" className="modal-close" onClick={onClose} aria-label="Zavrieť modal">
+        <button ref={closeBtnRef} type="button" className="modal-close" onClick={onClose} aria-label="Close modal">
           ×
         </button>
         {title ? (

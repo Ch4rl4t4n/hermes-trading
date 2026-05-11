@@ -1,37 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { STORAGE_KEYS } from "../utils/storageKeys";
 
-function resolveInitialTheme() {
-  if (typeof window === "undefined") return "dark";
-  const storedTheme = window.localStorage.getItem(STORAGE_KEYS.THEME);
-  if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
-  return "dark";
-}
-
-function applyTheme(theme) {
+/**
+ * Hermes is dark-only. The previous light-mode toggle was removed across
+ * the app per design — this hook stays for compatibility but always
+ * resolves to dark, removes any stale theme attribute and clears the
+ * cached preference so old clients also normalise to dark.
+ */
+function applyDark() {
   if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  if (theme === "light") {
-    root.setAttribute("data-theme", "light");
-  } else {
-    root.removeAttribute("data-theme");
-  }
+  document.documentElement.removeAttribute("data-theme");
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState(resolveInitialTheme);
-
   useEffect(() => {
-    applyTheme(theme);
+    applyDark();
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEYS.THEME, theme);
+      try {
+        window.localStorage.removeItem(STORAGE_KEYS.THEME);
+      } catch {
+        /* ignore */
+      }
     }
-  }, [theme]);
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  return {
+    theme: "dark",
+    isLight: false,
+    toggleTheme: () => {},
+    setTheme: () => {},
   };
-
-  return { theme, isLight: theme === "light", toggleTheme, setTheme };
 }

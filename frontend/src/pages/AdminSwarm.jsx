@@ -11,11 +11,11 @@ import useAdminSwarmRoutingInsights from "../hooks/useAdminSwarmRoutingInsights"
 import swarmApi from "../api/swarm";
 
 const DEFAULT_SWARMS = [
-  { swarm_name: "orchestra", display_name: "Orchestra", icon: "🎼", description: "Hlavný koordinátor - routuje tasky do ostatných swarmov", color: "oklch(0.72 0.18 295)" },
-  { swarm_name: "trading", display_name: "Trading", icon: "📈", description: "Vykonáva a monitoruje trading stratégie", color: "oklch(0.78 0.16 155)" },
-  { swarm_name: "intelligence", display_name: "Intelligence", icon: "🔍", description: "Research, analýza správ a detekcia trendov", color: "oklch(0.78 0.14 75)" },
-  { swarm_name: "marketing", display_name: "Marketing", icon: "📣", description: "Sociálne siete, obsah, SEO a rast", color: "oklch(0.72 0.18 15)" },
-  { swarm_name: "maintenance", display_name: "Maintenance", icon: "🔧", description: "Infraštruktúra, monitoring a bezpečnosť", color: "oklch(0.65 0.12 220)" },
+  { swarm_name: "orchestra", display_name: "Orchestra", icon: "🎼", description: "Primary coordinator — routes tasks to other swarms", color: "oklch(0.72 0.18 295)" },
+  { swarm_name: "trading", display_name: "Trading", icon: "📈", description: "Executes and monitors trading strategies", color: "oklch(0.78 0.16 155)" },
+  { swarm_name: "intelligence", display_name: "Intelligence", icon: "🔍", description: "Research, news analysis, and trend detection", color: "oklch(0.78 0.14 75)" },
+  { swarm_name: "marketing", display_name: "Marketing", icon: "📣", description: "Social, content, SEO, and growth", color: "oklch(0.72 0.18 15)" },
+  { swarm_name: "maintenance", display_name: "Maintenance", icon: "🔧", description: "Infrastructure, monitoring, and security", color: "oklch(0.65 0.12 220)" },
 ];
 
 function formatUptime(seconds) {
@@ -26,17 +26,17 @@ function formatUptime(seconds) {
 }
 
 function formatAgo(value) {
-  if (!value) return "bez dát";
+  if (!value) return "no data";
   const ts = new Date(value).getTime();
-  if (!Number.isFinite(ts)) return "bez dát";
+  if (!Number.isFinite(ts)) return "no data";
   const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (diffSec < 60) return `pred ${diffSec}s`;
-  if (diffSec < 3600) return `pred ${Math.floor(diffSec / 60)}m`;
-  return `pred ${Math.floor(diffSec / 3600)}h`;
+  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  return `${Math.floor(diffSec / 3600)}h ago`;
 }
 
 function apiMessage(error, fallback) {
-  if (error?.response?.status === 403) return "Vyžaduje sa admin prístup";
+  if (error?.response?.status === 403) return "Admin access required";
   return error?.userMessage || error?.response?.data?.error || fallback;
 }
 
@@ -168,13 +168,13 @@ export default function AdminSwarm({ onNav, onToast }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchRegistry().catch((error) => {
-        const msg = apiMessage(error, "Nepodarilo sa načítať registry");
+        const msg = apiMessage(error, "Failed to load registry");
         setApiError(msg);
         onToast?.(msg);
       });
       fetchQueueTasks().catch(() => setQueueTasks([]));
       fetchSystemHealth().catch((error) => {
-        const msg = apiMessage(error, "Nepodarilo sa načítať zdravie systému");
+        const msg = apiMessage(error, "Failed to load system health");
         setApiError(msg);
       });
       fetchRoutingLog().catch(() => setRoutingLog([]));
@@ -274,10 +274,10 @@ export default function AdminSwarm({ onNav, onToast }) {
   const updateStatus = async (agentId, status) => {
     try {
       await client.post(`/api/admin/registry/agents/${agentId}/status`, { status });
-      onToast?.(`Agent ${agentId} nastavený na ${status}`);
+      onToast?.(`Agent ${agentId} set to ${status}`);
       fetchRegistry().catch(() => {});
     } catch (error) {
-      onToast?.(apiMessage(error, `Nepodarilo sa nastaviť ${status} pre ${agentId}`));
+      onToast?.(apiMessage(error, `Failed to set ${status} for ${agentId}`));
     }
   };
 
@@ -290,9 +290,9 @@ export default function AdminSwarm({ onNav, onToast }) {
   };
 
   const emergencyStop = async () => {
-    if (!window.confirm("Si si istý? Toto zastaví VŠETKÝCH agentov.")) return;
+    if (!window.confirm("Are you sure? This will stop ALL agents.")) return;
     await bulkStatusUpdate("stopped", mergeAgents);
-    onToast?.("Núdzové zastavenie spustené");
+    onToast?.("Emergency stop triggered");
   };
 
   const pushTask = async () => {
@@ -300,7 +300,7 @@ export default function AdminSwarm({ onNav, onToast }) {
     try {
       payload = taskPayloadText.trim() ? JSON.parse(taskPayloadText) : {};
     } catch {
-      onToast?.("Payload musí byť validný JSON");
+      onToast?.("Payload must be valid JSON");
       return;
     }
     setIsPushingTask(true);
@@ -310,12 +310,12 @@ export default function AdminSwarm({ onNav, onToast }) {
         payload,
         priority: Number(taskPriority || 5),
       });
-      onToast?.("Task bol zaradený do fronty");
+      onToast?.("Task queued");
       closeTaskModal();
       fetchQueueTasks().catch(() => {});
       fetchRegistry().catch(() => {});
     } catch {
-      onToast?.("Nepodarilo sa zaradiť task do fronty");
+      onToast?.("Failed to enqueue task");
     } finally {
       setIsPushingTask(false);
     }
@@ -329,14 +329,14 @@ export default function AdminSwarm({ onNav, onToast }) {
     const hardWarnings = routingCapabilityAlerts.filter((item) => item.level === "high");
     if (hardWarnings.length > 0) {
       const detail = hardWarnings.map((w) => w.cap).join(", ");
-      const ok = window.confirm(`Vybrané capability sú bez idle kapacity: ${detail}. Pokračovať v routovaní?`);
+      const ok = window.confirm(`Selected capabilities have no idle capacity: ${detail}. Continue routing?`);
       if (!ok) return;
     }
     let payload;
     try {
       payload = routingPayload.trim() ? JSON.parse(routingPayload) : {};
     } catch {
-      onToast?.("Router payload musí byť validný JSON");
+      onToast?.("Router payload must be valid JSON");
       return;
     }
     setRoutingBusy(true);
@@ -348,17 +348,17 @@ export default function AdminSwarm({ onNav, onToast }) {
         requiredCapabilities: routingCaps,
         preferredSwarm: routingPreferredSwarm || undefined,
       });
-      const dispatched = data?.dispatched_to_dramatiq ? " · odoslané do Dramatiq" : "";
+      const dispatched = data?.dispatched_to_dramatiq ? " · sent to Dramatiq" : "";
       onToast?.(
         data?.assigned_agent
-          ? `Routované na ${data.assigned_agent}${dispatched}`
-          : "Task zaradený bez priradenia",
+          ? `Routed to ${data.assigned_agent}${dispatched}`
+          : "Task queued without assignment",
       );
       fetchRoutingLog().catch(() => {});
       fetchQueueTasks().catch(() => {});
       fetchRegistry().catch(() => {});
     } catch (error) {
-      onToast?.(apiMessage(error, "Manuálne routovanie zlyhalo"));
+      onToast?.(apiMessage(error, "Manual routing failed"));
     } finally {
       setRoutingBusy(false);
     }
@@ -380,28 +380,31 @@ export default function AdminSwarm({ onNav, onToast }) {
         reason: data?.reason,
       });
     } catch (error) {
-      onToast?.(apiMessage(error, "Simulácia zlyhala"));
+      onToast?.(apiMessage(error, "Simulation failed"));
     } finally {
       setRoutingBusy(false);
     }
   };
 
   return (
-    <section className="page-content">
-      <div className="warroom-head glass">
-        <button type="button" className="share-btn" onClick={() => onNav?.("admin")}>← Admin</button>
-        <strong>Swarm War Room</strong>
-        <div className="row gap-2">
-          <button type="button" className="share-btn" onClick={() => setShowBuilder(true)}>+ Vytvoriť nový swarm</button>
+    <section className="page-content hermes-swarm">
+      <header className="hermes-page-head">
+        <div>
+          <h1 className="hermes-page-title">Swarm Center</h1>
+          <p className="hermes-page-lead">War Room — live monitoring of the 5 core swarms and the Prompt-based Swarm Builder</p>
+        </div>
+        <div className="row gap-2" style={{ alignItems: "center" }}>
+          <button type="button" className="hermes-cta-pill is-secondary" onClick={() => onNav?.("admin")}>← Admin</button>
+          <button type="button" className="hermes-cta-pill" onClick={() => setShowBuilder(true)}>+ Create new swarm</button>
           <span className="warroom-live"><span className="warroom-live-dot" />LIVE</span>
         </div>
-      </div>
+      </header>
 
       <div className="warroom-banner glass-2">
         <span className="warroom-live"><span className="warroom-live-dot" />LIVE</span>
-        <span>Fronta: {queueStats.pending || 0} čaká</span>
-        <span>{queueStats.agents_alive || 0} agentov online</span>
-        <span>{queueStats.agents_total || 0} agentov celkom</span>
+        <span>Queue: {queueStats.pending || 0} waiting</span>
+        <span>{queueStats.agents_alive || 0} agents online</span>
+        <span>{queueStats.agents_total || 0} agents total</span>
         <span>Uptime: {formatUptime(uptimeSec)}</span>
       </div>
 
@@ -415,13 +418,13 @@ export default function AdminSwarm({ onNav, onToast }) {
       <div className="warroom-layout">
         <div className="col gap-3">
           <article className="glass warroom-controls">
-            <div className="section-title">Globálne ovládanie</div>
+            <div className="section-title">Global controls</div>
             {apiError ? <div className="text-3 fs-12" style={{ marginBottom: 8 }}>{apiError}</div> : null}
             <div className="row gap-2" style={{ flexWrap: "wrap" }}>
-              <button type="button" className="pill pill-green" disabled={isBulkUpdating} onClick={() => bulkStatusUpdate("running", mergeAgents)}>Spustiť všetko</button>
-              <button type="button" className="pill pill-gray" disabled={isBulkUpdating} onClick={() => bulkStatusUpdate("paused", mergeAgents)}>Pozastaviť všetko</button>
-              <button type="button" className="pill pill-red" disabled={isBulkUpdating} onClick={() => bulkStatusUpdate("stopped", mergeAgents)}>Zastaviť všetko</button>
-              <button type="button" className="pill pill-red warroom-emergency" disabled={isBulkUpdating} onClick={emergencyStop}>Núdzové zastavenie</button>
+              <button type="button" className="pill pill-green" disabled={isBulkUpdating} onClick={() => bulkStatusUpdate("running", mergeAgents)}>Start all</button>
+              <button type="button" className="pill pill-gray" disabled={isBulkUpdating} onClick={() => bulkStatusUpdate("paused", mergeAgents)}>Pause all</button>
+              <button type="button" className="pill pill-red" disabled={isBulkUpdating} onClick={() => bulkStatusUpdate("stopped", mergeAgents)}>Stop all</button>
+              <button type="button" className="pill pill-red warroom-emergency" disabled={isBulkUpdating} onClick={emergencyStop}>Emergency stop</button>
             </div>
           </article>
 
@@ -517,9 +520,9 @@ export default function AdminSwarm({ onNav, onToast }) {
 
       {showTaskModal ? (
         <div className="modal-overlay" onClick={closeTaskModal}>
-          <article className="modal glass warroom-task-modal" role="dialog" aria-modal="true" aria-label="Pridať test task" onClick={(event) => event.stopPropagation()}>
-            <div className="section-title">Pridať test task</div>
-            <label className="fs-12 text-3">Typ tasku</label>
+          <article className="modal glass warroom-task-modal" role="dialog" aria-modal="true" aria-label="Add test task" onClick={(event) => event.stopPropagation()}>
+            <div className="section-title">Add test task</div>
+            <label className="fs-12 text-3">Task type</label>
             <input className="bt-field" value={taskType} onChange={(event) => setTaskType(event.target.value)} />
             <label className="fs-12 text-3">Payload JSON</label>
             <textarea className="bt-field warroom-payload" value={taskPayloadText} onChange={(event) => setTaskPayloadText(event.target.value)} />
@@ -527,9 +530,9 @@ export default function AdminSwarm({ onNav, onToast }) {
             <input className="bt-field" type="number" min={1} max={10} value={taskPriority} onChange={(event) => setTaskPriority(event.target.value)} />
             <div className="row gap-2">
               <button type="button" className="pill pill-violet" disabled={isPushingTask} onClick={pushTask}>
-                {isPushingTask ? "Zaraďujem..." : "Zaradiť task"}
+                {isPushingTask ? "Enqueueing..." : "Enqueue task"}
               </button>
-              <button type="button" className="pill pill-gray" onClick={closeTaskModal}>Zrušiť</button>
+              <button type="button" className="pill pill-gray" onClick={closeTaskModal}>Cancel</button>
             </div>
           </article>
         </div>

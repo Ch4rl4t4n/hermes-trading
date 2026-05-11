@@ -3,17 +3,17 @@ import client from "../api/client";
 
 const PROMPT_LIBRARY_KEY = "hermes_prompt_library";
 const EXAMPLE_PROMPTS = [
-  { label: "📈 Krypto trading swarm", prompt: "Create a crypto trading swarm that runs momentum and mean-reversion strategies, controls risk tightly, and sends Telegram alerts for high-confidence entries." },
-  { label: "📣 Social media automatizácia", prompt: "Create a marketing swarm that posts daily to Twitter and Instagram, monitors competitor accounts, generates weekly performance reports, and alerts me about viral trends." },
-  { label: "🔧 Údržba a monitoring webu", prompt: "Create a maintenance swarm that monitors uptime, scans logs for anomalies, runs security audits, and triggers recovery tasks automatically." },
-  { label: "📊 Denný reporting a analytika", prompt: "Create an analytics swarm that aggregates daily metrics, creates KPI reports, sends summaries via email, and highlights outliers automatically." },
-  { label: "🎯 SEO a obsah", prompt: "Create an SEO and content swarm that researches keywords, drafts article outlines, optimizes pages, and tracks ranking movement." },
+  { label: "📈 Crypto trading swarm", prompt: "Create a crypto trading swarm that runs momentum and mean-reversion strategies, controls risk tightly, and sends Telegram alerts for high-confidence entries." },
+  { label: "📣 Social media automation", prompt: "Create a marketing swarm that posts daily to Twitter and Instagram, monitors competitor accounts, generates weekly performance reports, and alerts me about viral trends." },
+  { label: "🔧 Site maintenance & monitoring", prompt: "Create a maintenance swarm that monitors uptime, scans logs for anomalies, runs security audits, and triggers recovery tasks automatically." },
+  { label: "📊 Daily reporting & analytics", prompt: "Create an analytics swarm that aggregates daily metrics, creates KPI reports, sends summaries via email, and highlights outliers automatically." },
+  { label: "🎯 SEO & content", prompt: "Create an SEO and content swarm that researches keywords, drafts article outlines, optimizes pages, and tracks ranking movement." },
 ];
 const QUICK_TEMPLATES = [
   { label: "📈 Trading", prompt: "Create a trading swarm focused on crypto momentum, portfolio risk balancing, and daily trade reports." },
   { label: "📣 Marketing", prompt: "Create a marketing swarm focused on social content, campaign experiments, and weekly growth analysis." },
-  { label: "🔧 Údržba", prompt: "Create a maintenance swarm focused on uptime monitoring, security checks, and incident response." },
-  { label: "📊 Analytika", prompt: "Create an analytics swarm focused on KPI dashboards, anomaly detection, and executive summaries." },
+  { label: "🔧 Maintenance", prompt: "Create a maintenance swarm focused on uptime monitoring, security checks, and incident response." },
+  { label: "📊 Analytics", prompt: "Create an analytics swarm focused on KPI dashboards, anomaly detection, and executive summaries." },
 ];
 
 function readPromptLibrary() {
@@ -92,21 +92,21 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
   const runGenerate = async (inputPrompt) => {
     const finalPrompt = String(inputPrompt || prompt || "").trim().slice(0, 2000);
     if (!finalPrompt) {
-      onToast?.("Prompt je povinný");
+      onToast?.("Prompt is required");
       return;
     }
     setLoadingGenerate(true);
     try {
       const { data } = await client.post("/api/admin/swarm-builder/generate", { prompt: finalPrompt });
       if (!data?.config) {
-        onToast?.("AI nevrátila konfiguráciu");
+        onToast?.("AI did not return a configuration");
       } else {
         setConfig(data.config);
         setPrompt(finalPrompt);
-        onToast?.("Náhľad vygenerovaný");
+        onToast?.("Preview generated");
       }
     } catch (error) {
-      onToast?.(error?.response?.data?.error || "Generovanie zlyhalo");
+      onToast?.(error?.response?.data?.error || "Generation failed");
     } finally {
       setLoadingGenerate(false);
     }
@@ -138,10 +138,10 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
     ];
     setSavedPrompts(next);
     if (!writePromptLibrary(next)) {
-      onToast?.("Prompt sa nepodarilo uložiť v tomto prehliadači");
+      onToast?.("Could not save prompt in this browser");
       return;
     }
-    onToast?.("Prompt uložený");
+    onToast?.("Prompt saved");
   };
 
   const updateConfig = (patch) => setConfig((prev) => ({ ...(prev || {}), ...patch }));
@@ -160,11 +160,11 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
         },
       };
       const { data } = await client.post("/api/admin/swarm-builder/create", { config: payload });
-      onToast?.(`Vytvorených agentov: ${data?.agents_created || 0}`);
+      onToast?.(`Agents created: ${data?.agents_created || 0}`);
       onCreated?.();
       onClose?.();
     } catch (error) {
-      onToast?.(error?.response?.data?.error || "Vytvorenie zlyhalo");
+      onToast?.(error?.response?.data?.error || "Create failed");
     } finally {
       setLoadingCreate(false);
     }
@@ -182,7 +182,7 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
     >
       <article className="modal glass swarm-builder-modal">
         <div className="row between">
-          <button type="button" className="share-btn" onClick={onClose} aria-label="Zavrieť Swarm Builder">× Zavrieť</button>
+          <button type="button" className="share-btn" onClick={onClose} aria-label="Close Swarm Builder">× Close</button>
           <strong id={titleId}>🚀 Swarm Builder</strong>
           <span />
         </div>
@@ -211,15 +211,15 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
               ))}
             </div>
             <button type="button" className={`swarm-generate-btn ${loadingGenerate ? "is-loading" : ""}`} disabled={loadingGenerate} onClick={() => runGenerate(prompt)}>
-              {loadingGenerate ? "AI navrhuje tvoj swarm..." : "✨ Generovať náhľad"}
+              {loadingGenerate ? "AI is drafting your swarm..." : "✨ Generate preview"}
             </button>
 
             {config ? (
               <div className="swarm-refine-wrap">
-                <input className="bt-field" placeholder="Spresni: pridaj voice agenta, odstráň SEO..." value={refinement} onChange={(event) => setRefinement(event.target.value)} />
+                <input className="bt-field" placeholder="Refine: add a voice agent, remove SEO..." value={refinement} onChange={(event) => setRefinement(event.target.value)} />
                 <div className="row gap-2">
-                  <button type="button" className="pill pill-violet" disabled={loadingGenerate || loadingCreate} onClick={runRefine}>Spresniť</button>
-                  <button type="button" className="pill pill-gray" disabled={loadingGenerate || loadingCreate} onClick={savePrompt}>Uložiť prompt</button>
+                  <button type="button" className="pill pill-violet" disabled={loadingGenerate || loadingCreate} onClick={runRefine}>Refine</button>
+                  <button type="button" className="pill pill-gray" disabled={loadingGenerate || loadingCreate} onClick={savePrompt}>Save prompt</button>
                 </div>
               </div>
             ) : null}
@@ -228,7 +228,7 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
           <aside className="swarm-builder-right">
             {!config ? (
               <div className="swarm-builder-empty">
-                <strong>✨ Opíš svoj swarm vľavo a klikni na Generovať náhľad</strong>
+                <strong>✨ Describe your swarm on the left and click Generate preview</strong>
               </div>
             ) : (
               <>
@@ -237,8 +237,8 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
                     <span>{config.icon || "🤖"}</span>
                     <strong>{config.display_name || "New Swarm"}</strong>
                   </div>
-                  <div className="text-3 fs-12" style={{ marginTop: 6 }}>{config.description || "Popis nebol zadaný."}</div>
-                  <div className="text-3 fs-12" style={{ marginTop: 8 }}>Agenti: {previewAgents.length}</div>
+                  <div className="text-3 fs-12" style={{ marginTop: 6 }}>{config.description || "No description provided."}</div>
+                  <div className="text-3 fs-12" style={{ marginTop: 8 }}>Agents: {previewAgents.length}</div>
                   <div className="row gap-1" style={{ flexWrap: "wrap", marginTop: 8 }}>
                     {previewAgents.map((agent) => (
                       <span key={agent.agent_id || agent.name} className="pill pill-gray">{agent.name || agent.agent_id}</span>
@@ -253,15 +253,15 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
 
                 <article className="glass-2 swarm-advanced">
                   <button type="button" className="warroom-directory-toggle" onClick={() => setShowAdvanced((prev) => !prev)}>
-                    {showAdvanced ? "▼" : "▶"} Pokročilé nastavenia
+                    {showAdvanced ? "▼" : "▶"} Advanced settings
                   </button>
                   {showAdvanced ? (
                     <div className="swarm-advanced-body">
-                      <label className="fs-12 text-3">Názov swarmu</label>
+                      <label className="fs-12 text-3">Swarm name</label>
                       <input className="bt-field" value={config.swarm_name || ""} onChange={(event) => updateConfig({ swarm_name: event.target.value })} />
                       <label className="fs-12 text-3">Priority ({Number(config.priority || 5)})</label>
                       <input type="range" min={1} max={10} value={Number(config.priority || 5)} onChange={(event) => updateConfig({ priority: Number(event.target.value) })} />
-                      <label className="fs-12 text-3">Maximálne súbežné tasky</label>
+                      <label className="fs-12 text-3">Max concurrent tasks</label>
                       <input
                         className="bt-field"
                         type="number"
@@ -269,26 +269,26 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
                         value={Number(config?.task_queue_settings?.max_concurrent || 3)}
                         onChange={(event) => updateConfig({ task_queue_settings: { ...(config.task_queue_settings || {}), max_concurrent: Number(event.target.value || 1) } })}
                       />
-                      <label className="fs-12 text-3">Denný cost limit (€)</label>
+                      <label className="fs-12 text-3">Daily cost limit (€)</label>
                       <input className="bt-field" type="number" min={0} step="0.1" value={Number(config.cost_limit_daily || 0)} onChange={(event) => updateConfig({ cost_limit_daily: Number(event.target.value || 0) })} />
-                      <label className="swarm-toggle"><input type="checkbox" checked={Boolean(config.memory_enabled)} onChange={(event) => updateConfig({ memory_enabled: event.target.checked })} /> Pamäť zapnutá</label>
-                      <label className="swarm-toggle"><input type="checkbox" checked={Boolean(config.human_approval_required)} onChange={(event) => updateConfig({ human_approval_required: event.target.checked })} /> Vyžadovať schválenie človekom</label>
+                      <label className="swarm-toggle"><input type="checkbox" checked={Boolean(config.memory_enabled)} onChange={(event) => updateConfig({ memory_enabled: event.target.checked })} /> Memory enabled</label>
+                      <label className="swarm-toggle"><input type="checkbox" checked={Boolean(config.human_approval_required)} onChange={(event) => updateConfig({ human_approval_required: event.target.checked })} /> Require human approval</label>
                     </div>
                   ) : null}
                 </article>
 
                 <article className="glass-2 swarm-cost-card">
-                  <strong>Odhad nákladov</strong>
-                  <div className="text-3 fs-12">Odhad mesačných nákladov: ~€{Number(config.estimated_monthly_cost || 0)}</div>
-                  <div className="text-3 fs-12">Agenti: {previewAgents.length} | Tasky/deň: ~{Number(config?.task_queue_settings?.rate_limit_per_hour || 0)}</div>
+                  <strong>Cost estimate</strong>
+                  <div className="text-3 fs-12">Estimated monthly cost: ~€{Number(config.estimated_monthly_cost || 0)}</div>
+                  <div className="text-3 fs-12">Agents: {previewAgents.length} | Tasks/day: ~{Number(config?.task_queue_settings?.rate_limit_per_hour || 0)}</div>
                 </article>
 
                 <button type="button" className="swarm-create-btn" disabled={loadingCreate || !config} onClick={createSwarm}>
-                  {loadingCreate ? "Vytváram agentov..." : "🚀 Vytvoriť swarm"}
+                  {loadingCreate ? "Creating agents..." : "🚀 Create swarm"}
                 </button>
 
                 <div className="swarm-templates">
-                  <strong>Rýchle šablóny:</strong>
+                  <strong>Quick templates:</strong>
                   <div className="row gap-2" style={{ flexWrap: "wrap", marginTop: 8 }}>
                     {QUICK_TEMPLATES.map((template) => (
                       <button key={template.label} type="button" className="pill pill-gray" disabled={loadingGenerate || loadingCreate} onClick={() => { setPrompt(template.prompt); runGenerate(template.prompt); }}>
@@ -302,7 +302,7 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
 
             <article className="glass-2 swarm-library">
               <button type="button" className="warroom-directory-toggle" onClick={() => setShowLibrary((prev) => !prev)}>
-                {showLibrary ? "▼" : "▶"} 📚 Moje uložené prompty
+                {showLibrary ? "▼" : "▶"} 📚 My saved prompts
               </button>
               {showLibrary ? (
                 <div className="swarm-library-list">
@@ -322,7 +322,7 @@ export default function SwarmBuilderModal({ open, onClose, onCreated, onToast })
                       <span>{new Date(item.created_at || 0).toLocaleString()}</span>
                     </button>
                   ))}
-                  {savedPrompts.length === 0 ? <span className="text-3 fs-12">Zatiaľ nemáš uložené prompty.</span> : null}
+                  {savedPrompts.length === 0 ? <span className="text-3 fs-12">No saved prompts yet.</span> : null}
                 </div>
               ) : null}
             </article>

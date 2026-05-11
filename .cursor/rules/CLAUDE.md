@@ -238,9 +238,9 @@ FASTAPI V2 (nové)
 - [x] Accessibility (základ: skip link, focus-visible, modal Tab trap, reduced motion, ARIA hlavičiek/navigácie)
 - [x] SPA URL história (`appRoutes.js`) + PWA shortcuts na reálne cesty
 
-### Fáza 4.5 (Interné — Owner only) — **ZA RADOU (Queued)**
+### Fáza 4.5 (Interné — Owner only) — **Milestone 1 hotové**, ZIP/AI backlog
 
-**Podmienka štartu:** spúšťať **až po uzavretí aktuálne otvorených položiek** vo **Fáze 5** nižšie (alebo po výslovnom GO vlastníka). Pred začiatkom 4.5 nedovážiť paralelnú vývojovú vetvu bez súhlasu.
+**Podmienka:** Owner funkcie sú izolované — bez allowlistu env sú všetky `/api/owner/*` (okrem neexistujúceho owner účtu) 403.
 
 **Executive summary:** výhradne **role `owner`** (žiadny vplyv na bežných používateľov / monetizáciu). Cieľ: **Universal CMS & Design System Regenerator** — manuálna editácia UI tokenov/komponentov v aplikácii, univerzálny import prototypu (text/JSON/ZIP/CSS/Tailwind config…), AI analýza + remap na náš dizajn, **one-click apply** na web + PWA (verziovanie, revert, backup).
 
@@ -289,20 +289,52 @@ POST  /api/owner/design/revert/:id     — obnova verzie
 
 #### Acceptance criteria (owner)
 
-- [ ] Upload ZIP / paste prompt → preview → **Apply** → web + PWA reflektujú nový DS v rozumnom SLA (cieľ dokumentu: ~8 s po aplikácii tokenov + SW refresh).
-- [ ] Manuálna zmena napr. glow na AgentCard → viditeľný live náhľad.
-- [ ] Jednoklikový **Revert** na predchádzajúcu verziu + automatický backup pred apply.
-- [ ] Všetko dostupné **iba pre owner** (403 pre ostatných vrátane admin tier bez owner flag).
+| Critérium | Stav |
+|-----------|------|
+| Upload ZIP / paste prompt → Apply → web + PWA (SW bump SLA) | backlog |
+| Manuálna zmena glow na konkrétnej komponente + live náhľad | backlog |
+| Jednoklikový **Revert** + záloha histórie | hotové — `POST /api/owner/design/revert`, append-only `design_system_versions` |
+| **Iba owner** (403 vrátane admin bez allowlistu) | hotové — `HERMES_OWNER_USER_IDS` + `core/owner_access.py` |
+
+#### Milestone 1 (hotové v repozitári)
+
+- [x] Šablóna `frontend/src/design-system/schema.template.json`
+- [x] DB `design_system_versions` (Alembic `q2w3e4r5t6y7`)
+- [x] Owner API: `GET /api/owner/design/schema`, `schema-template`, `history`; `POST apply`, `revert`
+- [x] Verejné `GET /api/design/active-schema` + SPA načítanie tokenov (`designSchema.js`)
+- [x] React stránka **`/owner/design`** (`OwnerDesign.jsx`), sidebar položka „Owner DS“ ak `is_owner`
+
+#### Milestone 2 (AI + import + SW bump — hotové)
+
+- [x] AI Audit: `POST /api/owner/design/analyze` (Claude → markdown report v slovenčine)
+- [x] AI Generate: `POST /api/owner/design/generate` (Claude → validovaný schema JSON podľa promptu)
+- [x] Import: `POST /api/owner/design/import` (JSON / flat token map → wrapper schema)
+- [x] Service Worker bump: `CACHE_NAME = hermes-v5`, message channel `HERMES_DESIGN_BUMP` čistí všetky caches
+- [x] Owner UI rozšírené: AI panel, import súboru, **live preview AgentCard**, automatický `bustDesignCachesAndRefresh()` po Apply/Revert
+
+#### Milestone 3 (Bundle import — hotové)
+
+- [x] `POST /api/owner/design/import-bundle` (multipart, prijíma `.json` / `.css` / `.zip`)
+- [x] Limity: 5 MB komprimované / 12 MB rozbalené / max 200 súborov / 800 KB per súbor; path-traversal guard
+- [x] Extractory: CSS regex `--var: value;` (toleruje `;` aj `}`), Hermes `globalCssVars`, Style-Dictionary `{value}` listy, ploché palety (`palette/colors/tokens/...`)
+- [x] Validačný report (slovensky): per-súbor `status/role/extracted/size`, agregované `errors/warnings/stats`
+- [x] Strict gate: tlačidlo „Vložiť do editora“ sa odomkne len keď `report.success === true`
+- [x] Owner Design UI: drag & drop modal `OwnerDesignImportModal.jsx`, hlavný button **„Import (JSON / CSS / ZIP)“**, sekundárny „Rýchly JSON paste“ pre starší flow
 
 #### Orientačná náročnosť
 
 **2–3 týždne** (8–12 pracovných dní) podľa pôvodného dokumentu; prvý milestone po GO: schema + import parser + owner gate + 1 AI endpoint.
 
+### Cross-cutting (po dokončení Fázy 5)
+
+- [x] **Notification Center** v TopBare (zvonček s unread badge, dropdown s posledných 50, mark-as-read jednotlivo / hromadne, polling `/api/notifications/unread-count` 30s, browser push pri prvých nových udalostiach po obnovení záložky, auto-navigácia podľa typu eventu — marketplace/community/alert/billing/builder)
+- [x] Backend: `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/read`, `POST /api/notifications/<id>/read`
+
 ### Fáza 5 (Pokročilé funkcie)
-- [ ] Agent marketplace (user-created agents, publikovanie)
+- [x] Agent marketplace (user-created agents, publikovanie — `/api/marketplace/user-agents/publish`, komunitná záložka merge Builder listingov + klony cez `/api/marketplace/listings/:id/clone`, React Marketplace)
 - [x] Backtesting engine (real calculations + equity curve + history)
-- [ ] API prístup pre Elite tier
-- [ ] Custom watcher nastavenia
+- [x] API prístup pre Elite tier (`/api/developer/keys`, `/api/keys/*`, `@api_key_required` + Developer stránka vo fronte)
+- [x] Custom watcher nastavenia (React Settings → UserWatcherSettings, Flask `/api/agents/user/:id/watcher-settings`)
 - [x] CSV/PDF export (trades CSV + P&L PDF + backtest CSV)
 
 ---
@@ -364,7 +396,7 @@ STRIPE_PRICE_PRO_MONTHLY / STRIPE_PRICE_PRO_YEARLY
 STRIPE_PRICE_ELITE_MONTHLY / STRIPE_PRICE_ELITE_YEARLY
 TELEGRAM_BOT_TOKEN
 ANTHROPIC_API_KEY
-HERMES_AGENT_BUILDER_MODEL  (optional, default: claude-sonnet-4-20250514)
+HERMES_OWNER_USER_IDS          (CSV číselných user.id pre Owner CMS / Design System; prázdne = žiadni owneri)
 ```
 
 ---

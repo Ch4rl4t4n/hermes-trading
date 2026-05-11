@@ -1,7 +1,13 @@
-export default function TopNav({ user, onMore, isLight, onToggleTheme }) {
+import NotificationBell from "../NotificationBell";
+import { useCurrency } from "../../contexts/CurrencyContext";
+
+export default function TopNav({ user, onNav, totalPnl = 0 }) {
+  const { format } = useCurrency();
+  const pnlValue = Number(totalPnl) || 0;
+  const pnlSign = pnlValue > 0 ? "pos" : pnlValue < 0 ? "neg" : "flat";
   return (
     <header
-      aria-label="Horná lišta"
+      aria-label="Top bar"
       style={{
         height: 56,
         position: "sticky",
@@ -24,52 +30,17 @@ export default function TopNav({ user, onMore, isLight, onToggleTheme }) {
         <div className="row gap-2">
           <button
             type="button"
-            className="theme-toggle-btn"
-            onClick={onToggleTheme}
-            aria-label={isLight ? "Prepnúť na tmavý režim" : "Prepnúť na svetlý režim"}
-            title={isLight ? "Tmavý režim" : "Svetlý režim"}
+            className={`hermes-topnav-pill is-pnl is-${pnlSign}`}
+            onClick={() => onNav?.("dashboard")}
+            title="Total paper P&L"
           >
-            {isLight ? "🌙" : "☀️"}
+            <span className="hermes-topnav-pill-suffix">P&amp;L</span>
+            <span className="mono">{format(pnlValue, { decimals: 0, signed: true })}</span>
           </button>
-          <button
-            type="button"
-            onClick={onMore}
-            aria-label="Notifikácie a Backtest"
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--color-text-2)",
-              width: 34,
-              height: 34,
-              position: "relative",
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-              <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-              <path d="M10.4 20a2.1 2.1 0 0 0 3.2 0" />
-            </svg>
-            <span
-              style={{
-                position: "absolute",
-                top: 1,
-                right: 2,
-                minWidth: 16,
-                height: 16,
-                borderRadius: 999,
-                fontSize: 10,
-                fontWeight: 700,
-                background: "var(--color-red)",
-                color: "#fff",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              {user?.notifications || 0}
-            </span>
-          </button>
+          <NotificationBell user={user} onNav={onNav} />
           <div
             role="img"
-            aria-label={`Profil používateľa ${user?.name || "Agent"}`}
+            aria-label={`User profile ${user?.name || "Agent"}`}
             style={{
               width: 34,
               height: 34,

@@ -1852,13 +1852,6 @@ body.is-offline .modal-overlay#loginModal{pointer-events:auto}
     <button type="button" class="header-notif-btn" id="headerNotifBtn" aria-label="Notifications">🔔</button>
     <span class="header-notif-badge" id="headerNotifBadge" aria-hidden="true">0</span>
   </div>
-  <button type="button" id="theme-toggle"
-          onclick="toggleTheme()"
-          class="theme-toggle-btn"
-          title="Prepnúť svetlý/tmavý režim"
-          aria-label="Toggle theme">
-    <span id="theme-icon">☀️</span>
-  </button>
   <div class="burger" id="burgerBtn" role="button" tabindex="0" aria-label="Menu">
     <div class="burger-line"></div>
     <div class="burger-line"></div>
@@ -3686,46 +3679,19 @@ function removeToast(el) {
   setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
 }
 
-function syncThemeColorMeta(theme) {
-  const m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.setAttribute('content', theme === 'light' ? '#f0f4ff' : '#6366f1');
-}
-
-function toggleTheme() {
-  const html = document.documentElement;
-  const current = html.getAttribute('data-theme');
-  const next = current === 'light' ? 'dark' : 'light';
-
-  html.setAttribute('data-theme', next);
-  localStorage.setItem('hermes_theme', next);
-  syncThemeColorMeta(next);
-
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = next === 'light' ? '🌙' : '☀️';
-}
-
+// Hermes is dark-only. Light/dark toggle was removed app-wide.
+// Force dark mode + clean any stale persisted preference so old clients
+// also normalise to dark on next load.
 function initTheme() {
-  const saved = localStorage.getItem('hermes_theme');
-  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const theme = saved || (systemDark ? 'dark' : 'light');
-
-  document.documentElement.setAttribute('data-theme', theme);
-  syncThemeColorMeta(theme);
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = theme === 'light' ? '🌙' : '☀️';
+  try {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.removeItem('hermes_theme');
+  } catch (e) { /* ignore */ }
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', '#6366f1');
 }
 
-try {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (!localStorage.getItem('hermes_theme')) {
-      const t = e.matches ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', t);
-      syncThemeColorMeta(t);
-      const icon = document.getElementById('theme-icon');
-      if (icon) icon.textContent = t === 'light' ? '🌙' : '☀️';
-    }
-  });
-} catch (e) { /* ignore */ }
+function toggleTheme() { /* no-op — dark only */ }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Formatters

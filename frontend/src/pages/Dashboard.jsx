@@ -1,53 +1,117 @@
-import { useEffect, useState } from "react";
-import AgentCard from "../components/agents/AgentCard";
+import { useEffect, useMemo, useState } from "react";
 import AgentEvolution from "../components/agents/AgentEvolution";
-import TradingQuote from "../components/TradingQuote";
-import ExportButton from "../components/ExportButton";
-import IntelligenceFeed from "../components/IntelligenceFeed";
+import AgentDetailModal from "../components/agents/AgentDetailModal";
+import Heatmap from "../components/dashboard/Heatmap";
 import AlertBanner from "../components/ui/AlertBanner";
 import Confetti from "../components/ui/Confetti";
-import OnboardingChecklist from "../components/ui/OnboardingChecklist";
 import ShareModal from "../components/ui/ShareModal";
-import { activeAlerts, onboardingSteps, recentTrades as demoRecentTrades } from "../data/demoData";
+import TrendingBanner from "../components/dashboard/TrendingBanner";
+import IntelligenceBubbles from "../components/dashboard/IntelligenceBubbles";
+import CategorySection from "../components/dashboard/CategorySection";
+import CommunityFeed from "../components/dashboard/CommunityFeed";
+import client from "../api/client";
+import { activeAlerts } from "../data/demoData";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { calculateXP, getLevel, getStoredEvolution } from "../utils/agentXP";
+import { groupAgentsByCategory, tierSlotLimits } from "../utils/agentCategory";
+import { STORAGE_KEYS } from "../utils/storageKeys";
+import { getAgentTrades } from "../api/agents";
 
-export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades = demoRecentTrades, alerts = activeAlerts }) {
-  const { isMobile, isTablet, isDesktop } = useBreakpoint();
-  const [tradesOpen, setTradesOpen] = useState(!isMobile);
+const personalityPills = {
+  zen_monk: "🧘 Zen",
+  aggressive: "🚀 Meme",
+  wall_street: "📊 Pro",
+  degen: "💀 Degen",
+};
+
+function getEvolutionView(agent) {
+  const xp = calculateXP(agent);
+  const level = getLevel(xp).level;
+  const evo = getStoredEvolution(agent, level);
+  return {
+    skin: evo.skin || "basic",
+    personality: personalityPills[evo.personality] || "🧘 Zen",
+  };
+}
+
+function loadOrder() {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(STORAGE_KEYS.DASHBOARD_ORDER) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveOrder(order) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEYS.DASHBOARD_ORDER, JSON.stringify(order || {}));
+  } catch {
+    /* noop */
+  }
+}
+
+function applyOrder(list, ids) {
+  if (!Array.isArray(ids) || !ids.length) return list;
+  const byId = new Map(list.map((a) => [a.id || a.symbol, a]));
+  const out = [];
+  for (const id of ids) {
+    const item = byId.get(id);
+    if (item) {
+      out.push(item);
+      byId.delete(id);
+    }
+  }
+  for (const [, item] of byId) out.push(item);
+  return out;
+}
+
+function downloadCsv(filename, rows) {
+  if (!rows || !rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(","),
+    ...rows.map((r) =>
+      headers
+        .map((h) => {
+          const v = r[h];
+          if (v === null || v === undefined) return "";
+          const s = String(v).replaceAll('"', '""');
+          return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+        })
+        .join(","),
+    ),
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export default function Dashboard({
+  agents = [],
+  onToast,
+  onToggleAgent,
+  alerts = activeAlerts,
+  onNav,
+  onAgentsChanged,
+  user,
+}) {
+  const { isDesktop } = useBreakpoint();
   const [evolutionAgent, setEvolutionAgent] = useState(null);
   const [evolutionRevision, setEvolutionRevision] = useState(0);
   const [shareAgent, setShareAgent] = useState(null);
+  const [detailAgent, setDetailAgent] = useState(null);
   const [confettiTick, setConfettiTick] = useState(0);
+  const [orderMap, setOrderMap] = useState(() => loadOrder());
 
-  const personalityPills = {
-    zen_monk: "🧘 Zen",
-    aggressive: "🚀 Meme",
-    wall_street: "📊 Pro",
-    degen: "💀 Degen",
-  };
-
-  const getAgentEvolutionView = (agent) => {
-    const xp = calculateXP(agent);
-    const level = getLevel(xp).level;
-    const evo = getStoredEvolution(agent, level);
-    return {
-      skin: evo.skin || "basic",
-      personality: personalityPills[evo.personality] || "🧘 Zen",
-    };
-  };
-
-  useEffect(() => {
-    if (isMobile) return;
-    const timer = window.setTimeout(() => setTradesOpen(true), 0);
-    return () => window.clearTimeout(timer);
-  }, [isMobile]);
-  const totalPnl = agents.reduce((sum, a) => sum + a.pnlUsd, 0);
-  const equity = 10000 + totalPnl;
-  const dayChange = totalPnl * 0.16;
-  const liveCount = agents.filter((a) => a.status === "live").length;
-  const winRateAvg = Math.round(agents.reduce((sum, a) => sum + a.winRate, 0) / agents.length);
-  const totalTrades = agents.reduce((sum, a) => sum + a.trades, 0);
+  const totalPnl = agents.reduce((sum, a) => sum + Number(a.pnlUsd || 0), 0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -76,159 +140,130 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
     return () => window.clearTimeout(timer);
   }, [agents]);
 
-  const statsCards = (
-    <div className={isMobile ? "dashboard-stats-scroll" : "dashboard-stats"} style={{ marginTop: 12 }}>
-      <article className="glass stat-card" style={{ padding: "20px" }}>
-        <div className="mp-meta">Active agents</div>
-        <strong className="mono" style={{ fontSize: 24 }}>{liveCount}</strong>
-      </article>
-      <article className="glass stat-card" style={{ padding: "20px" }}>
-        <div className="mp-meta">Average win rate</div>
-        <strong className="mono" style={{ fontSize: 24 }}>{winRateAvg}%</strong>
-      </article>
-      <article className="glass stat-card" style={{ padding: "20px" }}>
-        <div className="mp-meta">Total trades</div>
-        <strong className="mono" style={{ fontSize: 24 }}>{totalTrades}</strong>
-      </article>
-    </div>
-  );
+  const grouped = useMemo(() => {
+    const raw = groupAgentsByCategory(agents);
+    return {
+      crypto: applyOrder(raw.crypto, orderMap.crypto),
+      stocks: applyOrder(raw.stocks, orderMap.stocks),
+      commodity: applyOrder(raw.commodity, orderMap.commodity),
+    };
+  }, [agents, orderMap]);
 
-  const tradesBlock = (
-    <article className="glass">
-      <div className="row between" style={{ alignItems: "center", padding: "0 12px" }}>
-        <div className="section-title" style={{ margin: "14px 0 10px" }}>Recent trades</div>
-        <ExportButton />
-      </div>
-      {recentTrades.map((trade) => (
-        <div key={trade.id} className="row between fs-13" style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-subtle)" }}>
-          <span>
-            {trade.symbol} · {trade.action}
-          </span>
-          <span className="mono" style={{ color: trade.pnl >= 0 ? "oklch(0.72 0.18 155)" : "oklch(0.65 0.2 25)" }}>
-            {trade.pnl >= 0 ? "+" : ""}
-            {trade.pnl.toFixed(2)}
-          </span>
-          <span className="text-3 fs-12">{trade.ts}</span>
-        </div>
-      ))}
-    </article>
-  );
+  const limits = tierSlotLimits(user?.tier);
+  const counts = {
+    crypto: { used: grouped.crypto.length, max: limits.crypto === 99 ? Math.max(grouped.crypto.length, 4) : limits.crypto },
+    stocks: { used: grouped.stocks.length, max: limits.stocks === 99 ? Math.max(grouped.stocks.length, 4) : limits.stocks },
+    commodity: { used: grouped.commodity.length, max: limits.commodity === 99 ? Math.max(grouped.commodity.length, 2) : limits.commodity },
+  };
 
-  const exportDataBlock = (
-    <article className="glass export-data-card">
-      <div className="section-title" style={{ marginTop: 0 }}>Export Data</div>
-      <div className="col gap-2">
-        <button
-          type="button"
-          className="btn btn-ghost"
-          style={{ width: "100%" }}
-          onClick={() => window.open("/api/export/trades.csv", "_blank", "noopener,noreferrer")}
-        >
-          Download Trade History (CSV)
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          style={{ width: "100%" }}
-          onClick={() => window.open("/api/export/report.pdf", "_blank", "noopener,noreferrer")}
-        >
-          Download Performance Report (PDF)
-        </button>
-      </div>
-    </article>
-  );
+  const goMarketplace = () => onNav?.("marketplace");
+
+  const handleReorder = (cat) => (ids) => {
+    const next = { ...orderMap, [cat]: ids };
+    setOrderMap(next);
+    saveOrder(next);
+    onToast?.("Order saved");
+  };
+
+  const handleExport = async (agent) => {
+    onToast?.(`Exporting ${agent.symbol}…`);
+    const { data } = await getAgentTrades(agent.symbol || agent.id);
+    const rows = (Array.isArray(data) ? data : []).map((t) => ({
+      timestamp: t.timestamp || t.ts || "",
+      action: (t.action || "").toUpperCase(),
+      symbol: t.symbol || agent.symbol,
+      price: t.price ?? "",
+      quantity: t.quantity ?? "",
+      pnl: t.pnl ?? t.pnl_usd ?? "",
+    }));
+    downloadCsv(
+      `hermes-${(agent.symbol || agent.id || "agent").toLowerCase()}-trades.csv`,
+      rows.length ? rows : [{ note: "no trades yet" }],
+    );
+  };
+
+  const handleRemove = async (agent) => {
+    if (typeof window !== "undefined") {
+      const ok = window.confirm(
+        `Remove ${agent.symbol || agent.name} from your dashboard? You can re-subscribe from Marketplace.`,
+      );
+      if (!ok) return;
+    }
+    try {
+      await client.post("/api/marketplace/unsubscribe", { agent_id: agent.id });
+      onToast?.(`Removed ${agent.symbol || agent.name}`);
+      onAgentsChanged?.();
+    } catch (err) {
+      onToast?.("Could not remove agent — please try again.");
+    }
+  };
 
   return (
-    <section className="page-content">
-      <article className="agent-card glass" style={{ boxShadow: totalPnl >= 0 ? "0 0 28px oklch(0.72 0.18 155 / 0.2)" : "none" }}>
-        <div className="text-3" style={{ fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase" }}>
-          Total Paper P&L
-        </div>
-        <div className="mono" style={{ fontSize: 40, fontWeight: 800, color: totalPnl >= 0 ? "oklch(0.72 0.18 155)" : "oklch(0.65 0.2 25)" }}>
-          {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}
-        </div>
-        <div className="text-2 fs-13">
-          Portfolio equity <span className="mono">${equity.toFixed(2)}</span>
-        </div>
-        <span className={`pill ${dayChange >= 0 ? "pill-green" : "pill-red"}`}>
-          Day {dayChange >= 0 ? "+" : ""}${dayChange.toFixed(2)}
-        </span>
-      </article>
-      <TradingQuote isEmpty={!agents.length} />
-      {statsCards}
+    <section className="page-content hermes-dashboard">
+      <TrendingBanner
+        onSelect={() => onNav?.("marketplace")}
+        onAdd={() => onNav?.("marketplace")}
+      />
 
-      {isDesktop ? (
-        <div className="dashboard-desktop">
-          <div className="dashboard-left">
-            <OnboardingChecklist steps={onboardingSteps} />
-            <div className="agents-grid desktop">
-              {agents.map((agent) => (
-                (() => {
-                  const evo = getAgentEvolutionView(agent);
-                  return (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  onToggle={() => onToggleAgent(agent.symbol || agent.id)}
-                  onDetails={() => onToast(`Opened ${agent.name}`)}
-                  onOpenEvolution={() => setEvolutionAgent(agent)}
-                  onShare={() => setShareAgent(agent)}
-                  personalityTag={evo.personality}
-                  evolutionSkin={evo.skin}
-                />
-                  );
-                })()
-              ))}
-            </div>
-          </div>
-          <aside className="dashboard-right">
-            {tradesBlock}
-            <AlertBanner alert={alerts[0]} />
-            <IntelligenceFeed />
-            {exportDataBlock}
-          </aside>
+      <IntelligenceBubbles />
+
+      <div className={isDesktop ? "hermes-dashboard-grid" : "hermes-dashboard-grid hermes-dashboard-grid--stack"}>
+        <div className="hermes-dashboard-main">
+          <CategorySection
+            title="Crypto"
+            used={counts.crypto.used}
+            max={counts.crypto.max}
+            agents={grouped.crypto}
+            emptyLabel="add crypto"
+            onToggleAgent={onToggleAgent}
+            onShare={(a) => setShareAgent(a)}
+            onDetails={(a) => setDetailAgent(a)}
+            onExport={(a) => handleExport(a)}
+            onRemove={(a) => handleRemove(a)}
+            onReorder={handleReorder("crypto")}
+            onAddAgent={goMarketplace}
+            getEvolutionView={getEvolutionView}
+          />
+          <CategorySection
+            title="Stocks"
+            used={counts.stocks.used}
+            max={counts.stocks.max}
+            agents={grouped.stocks}
+            emptyLabel="add stock"
+            onToggleAgent={onToggleAgent}
+            onShare={(a) => setShareAgent(a)}
+            onDetails={(a) => setDetailAgent(a)}
+            onExport={(a) => handleExport(a)}
+            onRemove={(a) => handleRemove(a)}
+            onReorder={handleReorder("stocks")}
+            onAddAgent={goMarketplace}
+            getEvolutionView={getEvolutionView}
+          />
+          <CategorySection
+            title="Commodities"
+            used={counts.commodity.used}
+            max={counts.commodity.max}
+            agents={grouped.commodity}
+            emptyLabel="add commodity"
+            onToggleAgent={onToggleAgent}
+            onShare={(a) => setShareAgent(a)}
+            onDetails={(a) => setDetailAgent(a)}
+            onExport={(a) => handleExport(a)}
+            onRemove={(a) => handleRemove(a)}
+            onReorder={handleReorder("commodity")}
+            onAddAgent={goMarketplace}
+            getEvolutionView={getEvolutionView}
+          />
         </div>
-      ) : (
-        <>
-          <div className={`agents-grid ${isTablet ? "tablet" : "mobile"}`}>
-            {agents.map((agent) => (
-              (() => {
-                const evo = getAgentEvolutionView(agent);
-                return (
-              <AgentCard
-                key={agent.id}
-                agent={agent}
-                onToggle={() => onToggleAgent(agent.symbol || agent.id)}
-                onDetails={() => onToast(`Opened ${agent.name}`)}
-                onOpenEvolution={() => setEvolutionAgent(agent)}
-                onShare={() => setShareAgent(agent)}
-                personalityTag={evo.personality}
-                evolutionSkin={evo.skin}
-              />
-                );
-              })()
-            ))}
-          </div>
-          {isMobile ? (
-            <article className="glass col gap-2" style={{ padding: 12 }}>
-              <button
-                className="row between"
-                style={{ border: "none", background: "transparent", color: "var(--color-text)", padding: 0 }}
-                onClick={() => setTradesOpen((v) => !v)}
-              >
-                <h3>Recent Trades</h3>
-                <span>{tradesOpen ? "−" : "+"}</span>
-              </button>
-              {tradesOpen && tradesBlock}
-            </article>
-          ) : (
-            tradesBlock
-          )}
-          <AlertBanner alert={alerts[0]} />
-          <IntelligenceFeed />
-          {exportDataBlock}
-        </>
-      )}
+
+        <CommunityFeed user={user} onToast={onToast} />
+      </div>
+
+      <section className="hermes-dashboard-secondary">
+        <AlertBanner alert={alerts[0]} />
+        <Heatmap />
+      </section>
+
       <AgentEvolution
         agent={evolutionAgent}
         open={Boolean(evolutionAgent)}
@@ -236,9 +271,18 @@ export default function Dashboard({ agents, onToast, onToggleAgent, recentTrades
         onChange={() => setEvolutionRevision((v) => v + 1)}
         key={`${evolutionAgent?.id || "none"}-${evolutionRevision}`}
       />
+      <AgentDetailModal
+        agent={detailAgent}
+        open={Boolean(detailAgent)}
+        onClose={() => setDetailAgent(null)}
+        onToggle={(a) => {
+          onToggleAgent?.(a.symbol || a.id);
+        }}
+        onShare={(a) => setShareAgent(a)}
+        onRemove={(a) => handleRemove(a)}
+      />
       <ShareModal agent={shareAgent} onClose={() => setShareAgent(null)} />
       <Confetti trigger={confettiTick} />
     </section>
   );
 }
-

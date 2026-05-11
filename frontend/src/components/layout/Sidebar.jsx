@@ -12,7 +12,7 @@ const iconBase = {
 const navItems = [
   {
     key: "dashboard",
-    label: "Prehľad",
+    label: "Dashboard",
     icon: (
       <svg {...iconBase}>
         <rect x="3.5" y="3.5" width="7.5" height="7.5" />
@@ -45,7 +45,7 @@ const navItems = [
   },
   {
     key: "leaderboard",
-    label: "Rebríček",
+    label: "Leaderboard",
     icon: (
       <svg {...iconBase}>
         <path d="M8 21h8" />
@@ -66,7 +66,7 @@ const navItems = [
   },
   {
     key: "settings",
-    label: "Nastavenia",
+    label: "Settings",
     icon: (
       <svg {...iconBase}>
         <circle cx="12" cy="12" r="3" />
@@ -76,7 +76,7 @@ const navItems = [
   },
   {
     key: "developer",
-    label: "Vývoj",
+    label: "Developer",
     icon: (
       <svg {...iconBase}>
         <rect x="4" y="4" width="16" height="16" rx="2.5" />
@@ -101,7 +101,7 @@ const adminItem = {
 
 const adminSwarmItem = {
   key: "admin-swarm",
-  label: "Centrum swarmov",
+  label: "Swarm Center",
   icon: (
     <svg {...iconBase}>
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
@@ -110,8 +110,23 @@ const adminSwarmItem = {
   ),
 };
 
+const ownerDesignItem = {
+  key: "owner-design",
+  label: "Owner — Design System",
+  icon: (
+    <svg {...iconBase}>
+      <path d="M12 3 3 8v8l9 5 9-5V8z" />
+      <path d="M12 12 3 7M12 12l9-5M12 12v10" />
+    </svg>
+  ),
+};
+
 export default function Sidebar({ page, onNav, user, onLogout }) {
-  const items = user?.isAdmin ? [...navItems, adminItem, adminSwarmItem] : navItems;
+  const items = [
+    ...navItems,
+    ...(user?.isOwner ? [ownerDesignItem] : []),
+    ...(user?.isAdmin ? [adminItem, adminSwarmItem] : []),
+  ];
   return (
     <aside className="sidebar" style={{ background: "oklch(0.12 0.02 260)" }}>
       <div className="sidebar-logo" style={{ letterSpacing: "0.06em", fontWeight: 700 }}>
@@ -119,7 +134,7 @@ export default function Sidebar({ page, onNav, user, onLogout }) {
         HERMES
       </div>
 
-      <nav className="sidebar-nav" aria-label="Bočná navigácia">
+      <nav className="sidebar-nav" aria-label="Sidebar navigation">
         {items.map((item) => {
           const active = page === item.key;
           return (
@@ -162,8 +177,8 @@ export default function Sidebar({ page, onNav, user, onLogout }) {
           </span>
         </div>
         <span className="pill pill-violet">{String(user?.tier || "basic").toUpperCase()}</span>
-        <button type="button" className="sidebar-logout" onClick={onLogout} aria-label="Odhlásiť sa">
-          Odhlásiť
+        <button type="button" className="sidebar-logout" onClick={onLogout} aria-label="Sign out">
+          Sign out
         </button>
       </div>
     </aside>

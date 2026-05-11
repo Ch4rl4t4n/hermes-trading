@@ -3,6 +3,7 @@ import { memo } from "react";
 import SparkLine from "../ui/SparkLine";
 import PerformanceBadge from "../ui/PerformanceBadge";
 import AgentAvatar from "./AgentAvatar";
+import { useCurrency } from "../../contexts/CurrencyContext";
 import { calculateXP, getLevel } from "../../utils/agentXP";
 
 function AgentCard({
@@ -14,6 +15,7 @@ function AgentCard({
   personalityTag,
   evolutionSkin = "basic",
 }) {
+  const { format } = useCurrency();
   const positive = agent.pnlUsd >= 0;
   const statusClass = agent.status === "live" ? "dot-live" : "dot-paused";
   const xp = calculateXP(agent);
@@ -58,8 +60,7 @@ function AgentCard({
 
         <div className="row between" style={{ marginTop: 8, alignItems: "center" }}>
           <div className="mono pnl-number" style={{ fontSize: 20, color: positive ? "oklch(0.72 0.18 155)" : "oklch(0.65 0.2 25)" }}>
-            {positive ? "+" : ""}
-            {agent.pnlUsd.toFixed(2)}
+            {format(agent.pnlUsd, { signed: true, decimals: 2 })}
           </div>
           <SparkLine points={agent.spark} color={positive ? "oklch(0.72 0.18 155)" : "oklch(0.65 0.2 25)"} />
         </div>

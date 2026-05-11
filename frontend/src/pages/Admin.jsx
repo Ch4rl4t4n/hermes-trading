@@ -188,13 +188,19 @@ export default function Admin({ onToast, onNav }) {
   };
 
   return (
-    <section className="page-content">
+    <section className="page-content hermes-admin">
+      <header className="hermes-page-head">
+        <div>
+          <h1 className="hermes-page-title">Admin Console</h1>
+          <p className="hermes-page-lead">Operational overview — users, subscriptions, agents, demo audit</p>
+        </div>
+      </header>
       <div className="col gap-3">
-        <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
-          <article className="glass-2" style={{ padding: 12, minWidth: 170 }}><div className="text-3 fs-12">Total users</div><strong>{totalUsers}</strong></article>
-          <article className="glass-2" style={{ padding: 12, minWidth: 170 }}><div className="text-3 fs-12">Active subscriptions</div><strong>{activeSubscriptions}</strong></article>
-          <article className="glass-2" style={{ padding: 12, minWidth: 170 }}><div className="text-3 fs-12">Total trades today</div><strong>{totalTradesToday}</strong></article>
-          <article className="glass-2" style={{ padding: 12, minWidth: 170 }}><div className="text-3 fs-12">System status</div><strong style={{ color: "var(--color-green)" }}>All green</strong></article>
+        <div className="hermes-stats-row">
+          <article className="hermes-stat-card"><div className="text-3 fs-12">Total users</div><strong>{totalUsers}</strong></article>
+          <article className="hermes-stat-card"><div className="text-3 fs-12">Active subscriptions</div><strong>{activeSubscriptions}</strong></article>
+          <article className="hermes-stat-card"><div className="text-3 fs-12">Total trades today</div><strong>{totalTradesToday}</strong></article>
+          <article className="hermes-stat-card"><div className="text-3 fs-12">System status</div><strong style={{ color: "var(--color-green, #10b981)" }}>All green</strong></article>
         </div>
 
         <article className="glass" style={{ padding: 14 }}>

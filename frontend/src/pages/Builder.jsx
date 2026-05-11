@@ -401,17 +401,23 @@ export default function Builder({ onToast, onNav }) {
   );
 
   return (
-    <section className="page-content" style={{ position: "relative" }}>
-      <div style={{ position: "absolute", top: 16, right: 20, display: "flex", gap: 8, zIndex: 2 }}>
-        <button className={`pill ${mode === "chat" ? "pill-violet" : "pill-gray"}`} onClick={() => setMode("chat")} style={{ cursor: "pointer", border: "none" }} type="button">
-          AI Chat
-        </button>
-        <button className={`pill ${mode === "wizard" ? "pill-violet" : "pill-gray"}`} onClick={() => setMode("wizard")} style={{ cursor: "pointer", border: "none" }} type="button">
-          Step Wizard
-        </button>
-      </div>
+    <section className="page-content hermes-builder">
+      <header className="hermes-page-head">
+        <div>
+          <h1 className="hermes-page-title">Agent Builder</h1>
+          <p className="hermes-page-lead">Build your own AI agent via the 4-step wizard or conversational mode</p>
+        </div>
+        <nav className="hermes-tabs" role="tablist" aria-label="Builder mode">
+          <button type="button" role="tab" aria-selected={mode === "chat"} className={`hermes-tab${mode === "chat" ? " is-active" : ""}`} onClick={() => setMode("chat")}>
+            AI Chat
+          </button>
+          <button type="button" role="tab" aria-selected={mode === "wizard"} className={`hermes-tab${mode === "wizard" ? " is-active" : ""}`} onClick={() => setMode("wizard")}>
+            4-step wizard
+          </button>
+        </nav>
+      </header>
 
-      <div style={{ marginTop: 44 }}>
+      <div>
         {mode === "wizard" ? (
           isDesktop ? (
             <div className="builder-desktop">
